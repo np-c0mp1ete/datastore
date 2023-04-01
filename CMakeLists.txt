@@ -15,3 +15,5 @@ add_library(datastore
 )
 
 target_include_directories(datastore PUBLIC ${PROJECT_SOURCE_DIR}/include)
+
+add_subdirectory(tests)
