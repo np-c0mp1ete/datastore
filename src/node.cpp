@@ -4,7 +4,26 @@
 
 namespace datastore
 {
-node::node(const std::string& name, volume* volume, node* parent) : name_(name), volume_(volume), parent_(parent)
+std::ostream& operator<<(std::ostream& lhs, const value_type& rhs)
+{
+    const auto kind = static_cast<value_kind>(rhs.index());
+    if (kind == value_kind::u32)
+        lhs << std::get<uint32_t>(rhs);
+    if (kind == value_kind::u64)
+        lhs << std::get<uint64_t>(rhs);
+    if (kind == value_kind::f32)
+        lhs << std::get<float>(rhs);
+    if (kind == value_kind::f64)
+        lhs << std::get<double>(rhs);
+    if (kind == value_kind::str)
+        lhs << std::get<std::string>(rhs);
+    if (kind == value_kind::ref)
+        lhs << std::get<ref>(rhs).path;
+
+    return lhs;
+}
+
+node::node(std::string name, volume* volume, node* parent) : name_(std::move(name)), volume_(volume), parent_(parent)
 {
 }
 
@@ -63,72 +82,85 @@ node& node::operator=(node&& rhs) noexcept
     return *this;
 }
 
-node* node::create_subnode(const std::string& subnode_path)
+node* node::create_subnode(datastore::path_view subnode_path)
 {
-    const size_t dot_pos = subnode_path.find_first_of('.');
-    std::string subnode_name = subnode_path.substr(0, dot_pos);
+    if (!subnode_path.valid())
+        return nullptr;
+
+    std::string subnode_name = subnode_path.front()->str();
 
     auto [it, inserted] = subnodes_.emplace(subnode_name, node(subnode_name, volume_, this));
     node* subnode = &it->second;
 
-    if (dot_pos != std::string::npos)
+    if (subnode_path.composite())
     {
-        const std::string remaining_path = subnode_path.substr(dot_pos + 1);
-        return subnode->create_subnode(remaining_path);
+        subnode_path.pop_front();
+        return subnode->create_subnode(std::move(subnode_path));
     }
 
     return subnode;
 }
 
-node* node::open_subnode(const std::string& subnode_path)
+node* node::open_subnode(datastore::path_view subnode_path)
 {
-    const size_t dot_pos = subnode_path.find_first_of('.');
-    std::string subnode_name = subnode_path.substr(0, dot_pos);
+    if (!subnode_path.valid())
+        return nullptr;
+
+    const std::string subnode_name = subnode_path.front()->str();
 
     const auto it = subnodes_.find(subnode_name);
     if (it == subnodes_.end())
         return nullptr;
 
     node* subnode = &it->second;
-    if (dot_pos != std::string::npos)
+    if (subnode_path.composite())
     {
-        const std::string remaining_path = subnode_path.substr(dot_pos + 1);
-        return subnode->open_subnode(remaining_path);
+        subnode_path.pop_front();
+        return subnode->open_subnode(std::move(subnode_path));
     }
 
     return subnode;
 }
 
-size_t node::delete_subnode(const std::string& subnode_name)
+size_t node::delete_subnode(datastore::path_view subnode_path)
 {
-    const node* subnode = open_subnode(subnode_name);
-    if (subnode && subnode->subnodes_.empty())
-    {
-        return subnodes_.erase(subnode_name);
-    }
-    return 0;
+    if (!subnode_path.valid())
+        return 0;
+
+    const std::string target_name = subnode_path.back()->str();
+    const node* subnode = open_subnode(std::move(subnode_path));
+    if (!subnode || !subnode->subnodes_.empty())
+        return 0;
+
+    return subnodes_.erase(target_name);
 }
 
-void node::delete_subnode_tree(const std::string& subnode_name)
+size_t node::delete_subnode_tree(datastore::path_view subnode_path)
 {
-    subnodes_.erase(subnode_name);
+    if (!subnode_path.valid())
+        return 0;
+
+    const std::string target_name = subnode_path.back()->str();
+    const node* subnode = open_subnode(std::move(subnode_path));
+    if (!subnode)
+        return 0;
+
+    return subnodes_.erase(target_name);
 }
 
-void node::rename_subnode(const std::string& subnode_name, const std::string& new_subnode_name)
-{
-    // Check that new_subnode_name subnode doesn't exist
-    node* new_subnode = open_subnode(new_subnode_name);
-    if (new_subnode)
-        return;
-
-    node* subnode = open_subnode(subnode_name);
-    if (subnode)
-    {
-        subnode->set_name(new_subnode_name);
-        subnodes_.emplace(new_subnode_name, std::move(*subnode));
-        delete_subnode_tree(subnode_name);
-    }
-}
+// void node::rename_subnode(const std::string& subnode_name, const std::string& new_subnode_name)
+// {
+//     if (subnodes_.find(new_subnode_name) != subnodes_.end())
+//         return nullptr;
+//
+//     const auto it = subnodes_.find(subnode_name);
+//     if (it == subnodes_.end())
+//         return nullptr;
+//     node* subnode = &it->second;
+//     subnode->set_name(new_subnode_name);
+//     subnodes_.emplace(new_subnode_name, std::move(*subnode));
+//     subnodes_.erase(subnode_name);
+// }
 
 std::vector<std::string_view> node::get_subnode_names()
 {
@@ -141,15 +173,18 @@ std::vector<std::string_view> node::get_subnode_names()
     return names;
 }
 
-void node::delete_value(const std::string& value_name)
+size_t node::delete_value(const std::string& value_name)
 {
-    values_.erase(value_name);
+    return values_.erase(value_name);
 }
 
-value_kind node::get_value_kind(const std::string& value_name) const
+std::optional<value_kind> node::get_value_kind(const std::string& value_name) const
 {
-    // TODO: at can throw
-    return static_cast<value_kind>(values_.at(value_name).index());
+    const auto it = values_.find(value_name);
+    if (it == values_.end())
+        return std::nullopt;
+
+    return static_cast<value_kind>(it->second.index());
 }
 
 std::vector<std::string_view> node::get_value_names()
@@ -205,8 +240,7 @@ std::ostream& operator<<(std::ostream& lhs, const node& rhs)
 
     for (const auto& [name, value] : rhs.values_)
     {
-        value_kind kind = rhs.get_value_kind(name);
-        lhs << name << " = " << *rhs.get_value<std::string>(name) << std::endl;
+        lhs << name << " = " << value << std::endl;
     }
 
     for (const auto& [name, subnode] : rhs.subnodes_)

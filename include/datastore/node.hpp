@@ -1,12 +1,16 @@
 #pragma once
 
+#include <optional>
 #include <ostream>
 #include <string>
 #include <unordered_map>
 #include <variant>
 
+#include "datastore/path_view.hpp"
+
 namespace datastore
 {
+class node_view;
 class volume;
 
 enum class value_kind : uint8_t
@@ -45,6 +49,8 @@ static_assert(std::is_same_v<binary_blob_t, std::variant_alternative_t<to_underl
 static_assert(std::is_same_v<ref, std::variant_alternative_t<to_underlying(value_kind::ref), value_type>>);
 static_assert(std::variant_size_v<value_type> == to_underlying(value_kind::_count));
 
+std::ostream& operator<<(std::ostream& lhs, const value_type& rhs);
+
 namespace detail
 {
 template <class T, class U>
@@ -75,7 +81,7 @@ constexpr uint64_t operator""_u64(unsigned long long value)
 class node
 {
   public:
-    node(const std::string& name, volume* volume, node* parent);
+    node(std::string name, volume* volume, node* parent);
 
     [[nodiscard]] node(const node& other) noexcept;
 
@@ -86,33 +92,33 @@ class node
     node& operator=(node&& rhs) noexcept;
 
     // Creates a new subnode or opens an existing subnode
-    node* create_subnode(const std::string& subnode_path);
+    node* create_subnode(path_view subnode_path);
 
     // Retrieves the specified subnode
-    node* open_subnode(const std::string& subnode_path);
+    node* open_subnode(path_view subnode_path);
 
     // Deletes the specified subnode
-    size_t delete_subnode(const std::string& subnode_name);
+    size_t delete_subnode(path_view subnode_path);
 
     // Deletes a subnode and any child subnodes recursively
-    void delete_subnode_tree(const std::string& subnode_name);
+    size_t delete_subnode_tree(path_view subnode_path);
 
     // Changes the name of the specified subnode
-    void rename_subnode(const std::string& subnode_name, const std::string& new_subnode_name);
+    // void rename_subnode(const std::string& subnode_name, const std::string& new_subnode_name);
 
     // Retrieves an array of strings that contains all the subnode names
     std::vector<std::string_view> get_subnode_names();
 
 
     // Deletes the specified value from this node
-    void delete_value(const std::string& value_name);
+    size_t delete_value(const std::string& value_name);
 
     // Retrieves the value associated with the specified name
     template <typename T, typename = std::enable_if_t<detail::allowed<T>::value>>
     [[nodiscard]] const T* get_value(const std::string& value_name) const;
 
     // Retrieves the data type of the value associated with the specified name
-    value_kind get_value_kind(const std::string& value_name) const;
+    [[nodiscard]] std::optional<value_kind> get_value_kind(const std::string& value_name) const;
 
     // Sets the value of a name/value pair in the node
     template <typename T>
@@ -128,6 +134,7 @@ class node
     [[nodiscard]] std::string path() const;
 
     friend std::ostream& operator<<(std::ostream& lhs, const node& rhs);
+    friend std::ostream& operator<<(std::ostream& lhs, const node_view& rhs);
 
     friend class serializer;
     friend class volume;

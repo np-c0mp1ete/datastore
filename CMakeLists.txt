@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_library(datastore
     include/datastore/node.hpp
     include/datastore/node_view.hpp
+    include/datastore/path_view.hpp
     include/datastore/vault.hpp
     include/datastore/volume.hpp
 

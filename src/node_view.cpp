@@ -74,13 +74,16 @@ node_view& node_view::operator=(node_view&& rhs) noexcept
     return *this;
 }
 
-node_view* node_view::create_link_subnode(const std::string& subnode_name, const std::string& target_path)
+node_view* node_view::create_link_subnode(const std::string& subnode_name, datastore::path_view target_path)
 {
+    if (!target_path.valid())
+        return nullptr;
+
     node_view* subview = create_subnode(subnode_name);
     if (!subview)
         return nullptr;
 
-    subview->set_value("__link", ref{target_path});
+    subview->set_value("__link", ref{target_path.str()});
 
     //node_view* target = vault_->root()->open_subview(target_path);
 
@@ -89,33 +92,33 @@ node_view* node_view::create_link_subnode(const std::string& subnode_name, const
     return subview;
 }
 
-node_view* node_view::create_subnode(const std::string& subnode_name)
+node_view* node_view::create_subnode(datastore::path_view subnode_path)
 {
+    if (!subnode_path.valid())
+        return nullptr;
+
     //TODO: always takes the node with the highest precedence
-    for (const auto& n : nodes_)
-    {
-        node* subnode = n->create_subnode(subnode_name);
-        if (!subnode)
-            return nullptr;
+    node* n = *nodes_.begin();
+    const std::string subnode_name = subnode_path.front()->str();
+    node* subnode = n->create_subnode(std::move(subnode_path));
+    if (!subnode)
+        return nullptr;
 
-        auto [it, inserted] = subviews_.emplace(subnode_name, node_view(subnode_name, vault_, this));
+    auto [it, inserted] = subviews_.emplace(subnode_name, node_view(subnode_name, vault_, this));
 
-        node_view& subview = it->second;
+    node_view& subview = it->second;
 
-        subview.nodes_.emplace(subnode);
+    subview.nodes_.emplace(subnode);
 
-        return &subview;
-    }
-
-    return nullptr;
+    return &subview;
 }
 
-
-
-node_view* node_view::open_subview(const std::string& subnode_path)
+node_view* node_view::open_subview(datastore::path_view subnode_path)
 {
-    const size_t dot_pos = subnode_path.find_first_of('.');
-    std::string subnode_name = subnode_path.substr(0, dot_pos);
+    if (!subnode_path.valid())
+        return nullptr;
+
+    const std::string subnode_name = subnode_path.front()->str();
 
     const auto it = subviews_.find(subnode_name);
     if (it == subviews_.end())
@@ -123,7 +126,7 @@ node_view* node_view::open_subview(const std::string& subnode_path)
         const ref* link = get_value<ref>("__link");
         if (link)
         {
-            std::string new_path = link->path + "." + subnode_path;
+            const std::string new_path = link->path + path_separator + subnode_path.str();
             return vault_->root()->open_subview(new_path);
         }
         return nullptr;
@@ -131,56 +134,64 @@ node_view* node_view::open_subview(const std::string& subnode_path)
 
     node_view* subnode = &it->second;
 
-    
-
-    if (dot_pos != std::string::npos)
+    if (subnode_path.composite())
     {
-        const std::string remaining_path = subnode_path.substr(dot_pos + 1);
-        return subnode->open_subview(remaining_path);
+        subnode_path.pop_front();
+        return subnode->open_subview(std::move(subnode_path));
     }
 
     return subnode;
 }
 
-size_t node_view::delete_subnode(const std::string& subnode_name)
+size_t node_view::delete_subnode(datastore::path_view subnode_path)
 {
+    if (!subnode_path.valid())
+        return 0;
+
     size_t num_deleted = 0;
     for (const auto node : nodes_)
     {
-        num_deleted += node->delete_subnode(subnode_name);
-        subviews_.erase(subnode_name);
+        num_deleted += node->delete_subnode(subnode_path);
+        subviews_.erase(subnode_path.front()->str());
     }
 
     const ref* link = get_value<ref>("__link");
     if (link)
     {
         node_view* target = vault_->root()->open_subview(link->path);
-        num_deleted += target->delete_subnode(subnode_name);
+        num_deleted += target->delete_subnode(subnode_path);
     }
 
     return num_deleted;
 }
 
-void node_view::delete_subnode_tree(const std::string& subnode_name)
+size_t node_view::delete_subnode_tree(datastore::path_view subnode_path)
 {
-    subviews_.erase(subnode_name);
+    if (!subnode_path.valid())
+        return 0;
+
+    subviews_.erase(subnode_path.front()->str());
     for (const auto node : nodes_)
     {
         // TODO: stop iterating when one value is deleted
-        node->delete_subnode_tree(subnode_name);
+        return node->delete_subnode_tree(subnode_path);
     }
+
+    return 0;
 }
 
 
 
 
-void node_view::delete_value(const std::string& value_name)
+size_t node_view::delete_value(const std::string& value_name)
 {
     for (const auto node : nodes_)
     {
         // TODO: stop iterating when one value is deleted
-        node->delete_value(value_name);
+        return node->delete_value(value_name);
     }
+
+    return 0;
 }
 
 std::string_view node_view::name()
@@ -206,19 +217,10 @@ std::ostream& operator<<(std::ostream& lhs, const node_view& rhs)
 
     for (const auto node : rhs.nodes_)
     {
-        for (auto value_name : node->get_value_names())
+        for (const auto& [name, value] : node->values_)
         {
-            lhs << "--> " << static_cast<size_t>(node->priority()) << ": " << node->path() << "." << value_name << " = ";
-
-            std::string name = std::string(value_name);
-            const value_kind kind = node->get_value_kind(name);
-            if (kind == value_kind::u32) lhs << *node->get_value<uint32_t>(name);
-            if (kind == value_kind::u64) lhs << *node->get_value<uint64_t>(name);
-            if (kind == value_kind::f32) lhs << *node->get_value<float>(name);
-            if (kind == value_kind::f64) lhs << *node->get_value<double>(name);
-            if (kind == value_kind::str) lhs << *node->get_value<std::string>(name);
-            if (kind == value_kind::ref) lhs << node->get_value<ref>(name)->path;
-            lhs << std::endl;
+            lhs << "--> " << static_cast<size_t>(node->priority()) << ": " << node->path() << "."  << name << " = " << value
+                << std::endl;
         }
     }
 

@@ -26,19 +26,19 @@ class node_view
 
     node_view& operator=(node_view&& rhs) noexcept;
 
-    node_view* create_link_subnode(const std::string& subnode_name, const std::string& target_path);
+    node_view* create_link_subnode(const std::string& subnode_name, path_view target_path);
 
     // Creates a new subnode or opens an existing subnode
-    node_view* create_subnode(const std::string& subnode_name);
+    node_view* create_subnode(path_view subnode_path);
 
     // Retrieves the specified subnode
-    node_view* open_subview(const std::string& subnode_path);
+    node_view* open_subview(path_view subnode_path);
 
     // Deletes the specified subnode
-    size_t delete_subnode(const std::string& subnode_name);
+    size_t delete_subnode(path_view subnode_path);
 
     // Deletes a subnode and any child subnodes recursively
-    void delete_subnode_tree(const std::string& subnode_name);
+    size_t delete_subnode_tree(path_view subnode_path);
 
     // Changes the name of the specified subnode
     void rename_subnode(const std::string& subnode_name, const std::string& new_subnode_name);
@@ -47,14 +47,14 @@ class node_view
 
 
     // Deletes the specified value from this node
-    void delete_value(const std::string& value_name);
+    size_t delete_value(const std::string& value_name);
 
     // Retrieves the value associated with the specified name
     template <typename T>
     [[nodiscard]] auto get_value(const std::string& value_name) const;
 
     // Retrieves the data type of the value associated with the specified name
-    value_kind get_value_kind(const std::string& value_name);
+    std::optional<value_kind> get_value_kind(const std::string& value_name);
 
     // Sets the value of a name/value pair in the node
     template <typename T>
