@@ -6,7 +6,7 @@ namespace datastore
 {
 namespace detail
 {
-bool compare_nodes(node* n1, node* n2)
+bool compare_nodes(const node* n1, const node* n2)
 {
     if (n1->priority() != n2->priority())
         return n1->priority() > n2->priority();
@@ -74,32 +74,32 @@ node_view& node_view::operator=(node_view&& rhs) noexcept
     return *this;
 }
 
-node_view* node_view::create_link_subnode(const std::string& subnode_name, datastore::path_view target_path)
+node_view* node_view::create_link_subnode(path_view subnode_name, const path_view& target_path)
 {
-    if (!target_path.valid())
+    if (!subnode_name.valid() || !target_path.valid())
         return nullptr;
 
-    node_view* subview = create_subnode(subnode_name);
+    node_view* subview = create_subnode(std::move(subnode_name));
     if (!subview)
         return nullptr;
 
     subview->set_value("__link", ref{target_path.str()});
 
-    //node_view* target = vault_->root()->open_subview(target_path);
+    //node_view* target = vault_->root()->open_subnode(target_path);
 
     //subview->nodes_.insert(target->nodes_.begin(), target->nodes_.end());
 
     return subview;
 }
 
-node_view* node_view::create_subnode(datastore::path_view subnode_path)
+node_view* node_view::create_subnode(path_view subnode_path)
 {
     if (!subnode_path.valid())
         return nullptr;
 
     //TODO: always takes the node with the highest precedence
     node* n = *nodes_.begin();
-    const std::string subnode_name = subnode_path.front()->str();
+    const std::string subnode_name = std::string(subnode_path.front().value());
     node* subnode = n->create_subnode(std::move(subnode_path));
     if (!subnode)
         return nullptr;
@@ -113,12 +113,12 @@ node_view* node_view::create_subnode(datastore::path_view subnode_path)
     return &subview;
 }
 
-node_view* node_view::open_subview(datastore::path_view subnode_path)
+node_view* node_view::open_subnode(path_view subnode_path)
 {
     if (!subnode_path.valid())
         return nullptr;
 
-    const std::string subnode_name = subnode_path.front()->str();
+    const std::string subnode_name = std::string(subnode_path.front().value());
 
     const auto it = subviews_.find(subnode_name);
     if (it == subviews_.end())
@@ -126,8 +126,8 @@ node_view* node_view::open_subview(datastore::path_view subnode_path)
         const ref* link = get_value<ref>("__link");
         if (link)
         {
-            const std::string new_path = link->path + path_separator + subnode_path.str();
-            return vault_->root()->open_subview(new_path);
+            const std::string new_path = link->path + path_view::path_separator + subnode_path.str();
+            return vault_->root()->open_subnode(new_path);
         }
         return nullptr;
     }
@@ -137,47 +137,71 @@ node_view* node_view::open_subview(datastore::path_view subnode_path)
     if (subnode_path.composite())
     {
         subnode_path.pop_front();
-        return subnode->open_subview(std::move(subnode_path));
+        return subnode->open_subnode(std::move(subnode_path));
     }
 
     return subnode;
 }
 
-size_t node_view::delete_subnode(datastore::path_view subnode_path)
+// size_t node_view::delete_subnode(path_view subnode_path)
+// {
+//     if (!subnode_path.valid())
+//         return 0;
+//
+//     size_t num_deleted = 0;
+//     for (const auto node : nodes_)
+//     {
+//         num_deleted += node->delete_subnode(subnode_path);
+//         subviews_.erase(std::string(subnode_path.front().value()));
+//     }
+//
+//     const ref* link = get_value<ref>("__link");
+//     if (link)
+//     {
+//         node_view* target = vault_->root()->open_subnode(link->path);
+//         num_deleted += target->delete_subnode(subnode_path);
+//     }
+//
+//     return num_deleted;
+// }
+
+size_t node_view::delete_subnode_tree(path_view subnode_path)
 {
     if (!subnode_path.valid())
+        return 0;
+
+    const std::string target_subnode_name = std::string(*subnode_path.back());
+
+    node_view* target_parent_subnode;
+    if (subnode_path.composite())
+    {
+        subnode_path.pop_back();
+        target_parent_subnode = open_subnode(std::move(subnode_path));
+    }
+    else
+    {
+        target_parent_subnode = this;
+    }
+
+    if (!target_parent_subnode)
         return 0;
 
     size_t num_deleted = 0;
-    for (const auto node : nodes_)
+    for (const auto node : target_parent_subnode->nodes_)
     {
-        num_deleted += node->delete_subnode(subnode_path);
-        subviews_.erase(subnode_path.front()->str());
+        num_deleted += node->delete_subnode_tree(target_subnode_name);
     }
 
-    const ref* link = get_value<ref>("__link");
-    if (link)
-    {
-        node_view* target = vault_->root()->open_subview(link->path);
-        num_deleted += target->delete_subnode(subnode_path);
-    }
+    target_parent_subnode->subviews_.erase(target_subnode_name);
+
+    // const ref* link = get_value<ref>("__link");
+    // if (link)
+    // {
+    //     node_view* target = vault_->root()->open_subnode(link->path);
+    //     num_deleted += target->delete_subnode_tree(subnode_path);
+    // }
 
     return num_deleted;
-}
-
-size_t node_view::delete_subnode_tree(datastore::path_view subnode_path)
-{
-    if (!subnode_path.valid())
-        return 0;
-
-    subviews_.erase(subnode_path.front()->str());
-    for (const auto node : nodes_)
-    {
-        // TODO: stop iterating when one value is deleted
-        return node->delete_subnode_tree(subnode_path);
-    }
-
-    return 0;
 }
 
 
@@ -202,10 +226,10 @@ std::string_view node_view::name()
 [[nodiscard]] std::string node_view::path() const
 {
     std::string path = name_;
-    node_view* parent = parent_;
+    const node_view* parent = parent_;
     while (parent)
     {
-        path = parent->name_ + "." + path;
+        path = parent->name_ + path_view::path_separator + path;
         parent = parent->parent_;
     }
     return path;
@@ -251,9 +275,9 @@ node_view* node_view::assign_subnode(const std::string& subnode_name, node* subn
     subview.nodes_.emplace(subnode);
 
     auto subnode_names = subnode->get_subnode_names();
-    for each (auto name in subnode_names)
+    for each (const auto& name in subnode_names)
     {
-        subview.assign_subnode(std::string(name), subnode->open_subnode(std::string(name)));
+        subview.assign_subnode(name, subnode->open_subnode(name));
     }
 
     return &subview;

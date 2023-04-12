@@ -82,12 +82,12 @@ node& node::operator=(node&& rhs) noexcept
     return *this;
 }
 
-node* node::create_subnode(datastore::path_view subnode_path)
+node* node::create_subnode(path_view subnode_path)
 {
     if (!subnode_path.valid())
         return nullptr;
 
-    std::string subnode_name = subnode_path.front()->str();
+    std::string subnode_name = std::string(*subnode_path.front());
 
     auto [it, inserted] = subnodes_.emplace(subnode_name, node(subnode_name, volume_, this));
     node* subnode = &it->second;
@@ -101,12 +101,12 @@ node* node::create_subnode(datastore::path_view subnode_path)
     return subnode;
 }
 
-node* node::open_subnode(datastore::path_view subnode_path)
+node* node::open_subnode(path_view subnode_path)
 {
     if (!subnode_path.valid())
         return nullptr;
 
-    const std::string subnode_name = subnode_path.front()->str();
+    const std::string subnode_name = std::string(*subnode_path.front());
 
     const auto it = subnodes_.find(subnode_name);
     if (it == subnodes_.end())
@@ -122,30 +122,41 @@ node* node::open_subnode(datastore::path_view subnode_path)
     return subnode;
 }
 
-size_t node::delete_subnode(datastore::path_view subnode_path)
+// size_t node::delete_subnode(path_view subnode_path)
+// {
+//     if (!subnode_path.valid())
+//         return 0;
+//
+//     const std::string target_name = std::string(*subnode_path.back());
+//     const node* subnode = open_subnode(std::move(subnode_path));
+//     if (!subnode || !subnode->subnodes_.empty())
+//         return 0;
+//
+//     return subnodes_.erase(target_name);
+// }
+
+size_t node::delete_subnode_tree(path_view subnode_path)
 {
     if (!subnode_path.valid())
         return 0;
 
-    const std::string target_name = subnode_path.back()->str();
-    const node* subnode = open_subnode(std::move(subnode_path));
-    if (!subnode || !subnode->subnodes_.empty())
+    const std::string target_subnode_name = std::string(*subnode_path.back());
+
+    node* target_parent_subnode;
+    if (subnode_path.composite())
+    {
+        subnode_path.pop_back();
+        target_parent_subnode = open_subnode(std::move(subnode_path));
+    }
+    else
+    {
+        target_parent_subnode = this;
+    }
+
+    if (!target_parent_subnode)
         return 0;
 
-    return subnodes_.erase(target_name);
-}
-
-size_t node::delete_subnode_tree(datastore::path_view subnode_path)
-{
-    if (!subnode_path.valid())
-        return 0;
-
-    const std::string target_name = subnode_path.back()->str();
-    const node* subnode = open_subnode(std::move(subnode_path));
-    if (!subnode)
-        return 0;
-
-    return subnodes_.erase(target_name);
+    return target_parent_subnode->subnodes_.erase(target_subnode_name);
 }
 
 // void node::rename_subnode(const std::string& subnode_name, const std::string& new_subnode_name)
@@ -162,9 +173,11 @@ size_t node::delete_subnode_tree(datastore::path_view subnode_path)
 //     subnodes_.erase(subnode_name);
 // }
 
-std::vector<std::string_view> node::get_subnode_names()
+std::vector<std::string> node::get_subnode_names()
 {
-    std::vector<std::string_view> names;
+    // Copy strings to avoid scenarios when a subnode gets deleted
+    // and the caller is left with a dangling pointer
+    std::vector<std::string> names;
     names.reserve(subnodes_.size());
     for (const auto& [name, subnode] : subnodes_)
     {
@@ -187,9 +200,11 @@ std::optional<value_kind> node::get_value_kind(const std::string& value_name) co
     return static_cast<value_kind>(it->second.index());
 }
 
-std::vector<std::string_view> node::get_value_names()
+std::vector<std::string> node::get_value_names()
 {
-    std::vector<std::string_view> names;
+    // Copy strings to avoid scenarios when a value gets deleted
+    // and the caller is left with a dangling pointer
+    std::vector<std::string> names;
     names.reserve(values_.size());
     for (const auto& [name, value] : values_)
     {
@@ -216,10 +231,10 @@ void node::set_name(const std::string& new_subnode_name)
 [[nodiscard]] std::string node::path() const
 {
     std::string path = name_;
-    node* parent = parent_;
+    const node* parent = parent_;
     while (parent)
     {
-        path = parent->name_ + "." + path;
+        path = parent->name_ + path_view::path_separator + path;
         parent = parent->parent_;
     }
     return path;

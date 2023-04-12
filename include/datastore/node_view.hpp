@@ -10,11 +10,15 @@ class vault;
 
 namespace detail
 {
-bool compare_nodes(node* n1, node* n2);
+bool compare_nodes(const node* n1, const node* n2);
 }
 
 class node_view
 {
+    friend class vault;
+
+    friend std::ostream& operator<<(std::ostream& lhs, const node_view& rhs);
+
   public:
     node_view(const std::string& name, vault* vault, node_view* parent);
 
@@ -26,25 +30,31 @@ class node_view
 
     node_view& operator=(node_view&& rhs) noexcept;
 
-    node_view* create_link_subnode(const std::string& subnode_name, path_view target_path);
+    // Creates a new subnode as a symbolic link to the target node
+    // Target path must be an absolute path from the vault root
+    node_view* create_link_subnode(path_view subnode_name, const path_view& target_path);
 
     // Creates a new subnode or opens an existing subnode
+    // The subnode can be several levels deep in the volume tree
     node_view* create_subnode(path_view subnode_path);
 
     // Retrieves the specified subnode
-    node_view* open_subview(path_view subnode_path);
+    // The subnode can be several levels deep in the volume tree
+    node_view* open_subnode(path_view subnode_path);
 
     // Deletes the specified subnode
-    size_t delete_subnode(path_view subnode_path);
+    // The subnode can be several levels deep in the volume tree
+    // The subnode to be deleted must not have subnodes
+    // TODO: remove
+    // size_t delete_subnode(path_view subnode_path);
 
     // Deletes a subnode and any child subnodes recursively
+    // The subnode can be several levels deep in the volume tree
     size_t delete_subnode_tree(path_view subnode_path);
 
     // Changes the name of the specified subnode
-    void rename_subnode(const std::string& subnode_name, const std::string& new_subnode_name);
-
-
-
+    // TODO: remove
+    // void rename_subnode(const std::string& subnode_name, const std::string& new_subnode_name);
 
     // Deletes the specified value from this node
     size_t delete_value(const std::string& value_name);
@@ -54,24 +64,22 @@ class node_view
     [[nodiscard]] auto get_value(const std::string& value_name) const;
 
     // Retrieves the data type of the value associated with the specified name
+    // TODO: implement
     std::optional<value_kind> get_value_kind(const std::string& value_name);
 
     // Sets the value of a name/value pair in the node
-    template <typename T>
-    std::enable_if_t<std::is_constructible_v<value_type, T>> set_value(const std::string& value_name, T new_value);
+    template <typename T, typename = std::enable_if_t<std::is_constructible_v<value_type, T>>>
+    void set_value(const std::string& value_name, T new_value);
 
     // Retrieves an array of strings that contains all the value names associated with this node
+    // TODO: implement
     std::vector<std::string_view> get_value_names();
 
     std::string_view name();
 
     [[nodiscard]] std::string path() const;
 
-    friend std::ostream& operator<<(std::ostream& lhs, const node_view& rhs);
-
-private:
-    friend class vault;
-
+  private:
     void set_vault(vault* vault);
 
     node_view* assign_subnode(const std::string& subnode_name, node* subnode);
@@ -97,9 +105,8 @@ template <typename T>
     return value;
 }
 
-template <typename T>
-std::enable_if_t<std::is_constructible_v<value_type, T>> node_view::set_value(const std::string& value_name,
-                                                                              T new_value)
+template <typename T, typename>
+void node_view::set_value(const std::string& value_name, T new_value)
 {
     // TODO: always inserts a value to the node with highest precedence
     for (auto node : nodes_)

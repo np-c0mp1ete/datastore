@@ -1,7 +1,0 @@
-#include <catch2/catch_test_macros.hpp>
-
-#include "datastore/volume.hpp"
-
-TEST_CASE("Nodes can be attached to a free mount point", "[mount_point]")
-{
-}

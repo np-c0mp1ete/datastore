@@ -80,9 +80,13 @@ constexpr uint64_t operator""_u64(unsigned long long value)
 
 class node
 {
-  public:
-    node(std::string name, volume* volume, node* parent);
+    friend class serializer;
+    friend class volume;
 
+    friend std::ostream& operator<<(std::ostream& lhs, const node& rhs);
+    friend std::ostream& operator<<(std::ostream& lhs, const node_view& rhs);
+
+  public:
     [[nodiscard]] node(const node& other) noexcept;
 
     [[nodiscard]] node(node&& other) noexcept;
@@ -92,22 +96,29 @@ class node
     node& operator=(node&& rhs) noexcept;
 
     // Creates a new subnode or opens an existing subnode
+    // The subnode can be several levels deep in the volume tree
     node* create_subnode(path_view subnode_path);
 
     // Retrieves the specified subnode
+    // The subnode can be several levels deep in the volume tree
     node* open_subnode(path_view subnode_path);
 
     // Deletes the specified subnode
-    size_t delete_subnode(path_view subnode_path);
+    // The subnode can be several levels deep in the volume tree
+    // The subnode to be deleted must not have subnodes
+    // TODO: remove
+    // size_t delete_subnode(path_view subnode_path);
 
     // Deletes a subnode and any child subnodes recursively
+    // The subnode can be several levels deep in the volume tree
     size_t delete_subnode_tree(path_view subnode_path);
 
     // Changes the name of the specified subnode
+    // TODO: remove
     // void rename_subnode(const std::string& subnode_name, const std::string& new_subnode_name);
 
     // Retrieves an array of strings that contains all the subnode names
-    std::vector<std::string_view> get_subnode_names();
+    std::vector<std::string> get_subnode_names();
 
 
     // Deletes the specified value from this node
@@ -121,11 +132,11 @@ class node
     [[nodiscard]] std::optional<value_kind> get_value_kind(const std::string& value_name) const;
 
     // Sets the value of a name/value pair in the node
-    template <typename T>
-    std::enable_if_t<std::is_constructible_v<value_type, T>> set_value(const std::string& value_name, T new_value);
+    template <typename T, typename = std::enable_if_t<std::is_constructible_v<value_type, T>>>
+    void set_value(const std::string& value_name, T new_value);
 
     // Retrieves an array of strings that contains all the value names associated with this node
-    std::vector<std::string_view> get_value_names();
+    std::vector<std::string> get_value_names();
 
     std::string_view name();
 
@@ -133,13 +144,10 @@ class node
 
     [[nodiscard]] std::string path() const;
 
-    friend std::ostream& operator<<(std::ostream& lhs, const node& rhs);
-    friend std::ostream& operator<<(std::ostream& lhs, const node_view& rhs);
-
-    friend class serializer;
-    friend class volume;
 
 private:
+    node(std::string name, volume* volume, node* parent);
+
     void set_name(const std::string& new_subnode_name);
 
     void set_volume(volume* volume);
@@ -160,8 +168,8 @@ template <typename T, typename>
     return std::get_if<T>(&it->second);
 }
 
-template <typename T>
-std::enable_if_t<std::is_constructible_v<value_type, T>> node::set_value(const std::string& value_name, T new_value)
+template <typename T, typename>
+void node::set_value(const std::string& value_name, T new_value)
 {
     values_[value_name] = new_value;
 }

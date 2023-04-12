@@ -7,8 +7,8 @@ FetchContent_Declare(Catch2
 FetchContent_MakeAvailable(Catch2)
 
 add_executable(tests
-    test_mount_point.cpp
     test_node.cpp
+    test_path_view.cpp
     test_vault.cpp
     test_volume.cpp
 )

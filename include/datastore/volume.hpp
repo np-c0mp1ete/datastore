@@ -21,8 +21,12 @@ public:
 
 class volume
 {
+    friend class serializer;
+
   public:
     using priority_t = uint8_t;
+
+    static const inline std::vector<uint8_t> signature = {'=', 'V', 'O', 'L'};
 
     volume(priority_t priority);
 
@@ -46,10 +50,6 @@ class volume
     {
         return priority_;
     }
-
-    friend class serializer;
-
-    static const inline std::vector<uint8_t> signature = {'=', 'V', 'O', 'L'};
 
 private:
     uint8_t format_version_[2];

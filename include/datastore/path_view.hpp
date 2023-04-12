@@ -1,107 +1,48 @@
 #pragma once
 
+#include <algorithm>
+#include <list>
 #include <optional>
-#include <ostream>
 #include <string>
-#include <unordered_map>
-#include <variant>
 
 namespace datastore
 {
-class node_view;
-class volume;
-
-constexpr static char path_separator = '.';
-
-class path_element_view
-{
-  public:
-    path_element_view(const char* value)
-    {
-        parse(value);
-    }
-
-    path_element_view(std::string_view value)
-    {
-        parse(value);
-    }
-
-    [[nodiscard]] bool valid() const
-    {
-        return !value_.empty();
-    }
-
-    [[nodiscard]] size_t size() const
-    {
-        return value_.size();
-    }
-
-    [[nodiscard]] std::string str() const
-    {
-        return std::string(value_);
-    }
-
-    operator std::string_view() const
-    {
-        return value_;
-    }
-
-  private:
-    void parse(std::string_view value)
-    {
-        if (value.find(path_separator) != std::string_view::npos)
-            return;
-
-        value_ = value;
-    }
-
-    std::string_view value_;
-};
-
+// Paths in the form "^[a-zA-Z0-9]+(\.[a-zA-Z0-9]+)*$" are supported, e.g. "abc" or "a.b.c"
+// Only alphanumeric path elements are allowed
 class path_view
 {
-public:
-    path_view(const char* path) : path_(path)
+  public:
+    constexpr static char path_separator = '.';
+
+    template <typename T, typename = std::enable_if_t<std::is_constructible_v<std::string_view, T>>>
+    path_view(T&& path) : path_(std::forward<T>(path))
     {
-        parse(path);
+        valid_ = parse(path);
     }
 
-    path_view(std::string_view path) : path_(path)
-    {
-        parse(path);
-    }
-
-    path_view(const std::string& path) : path_(path)
-    {
-        parse(path);
-    }
-
-    path_view(path_element_view path) : path_(path)
-    {
-        parse(path);
-    }
+    path_view(nullptr_t) = delete;
 
     [[nodiscard]] bool valid() const
     {
-        return !elements_.empty();
+        return valid_ && !elements_.empty();
     }
 
     [[nodiscard]] bool composite() const
     {
-        return elements_.size() > 1;
+        return valid_ && elements_.size() > 1;
     }
 
-    [[nodiscard]] std::optional<path_element_view> front() const
+    [[nodiscard]] std::optional<std::string_view> front() const
     {
-        if (elements_.empty())
+        if (!valid_ || elements_.empty())
             return std::nullopt;
 
         return elements_.front();
     }
 
-    [[nodiscard]] std::optional<path_element_view> back() const
+    [[nodiscard]] std::optional<std::string_view> back() const
     {
-        if (elements_.empty())
+        if (!valid_ || elements_.empty())
             return std::nullopt;
 
         return elements_.back();
@@ -109,30 +50,54 @@ public:
 
     void pop_front()
     {
-        if (elements_.empty())
+        if (!valid_ || elements_.empty())
             return;
 
         path_.remove_prefix(elements_.front().size());
-        if (!path_.empty() && path_[0] == path_separator)
+        if (!path_.empty() && path_.front() == path_separator)
             path_.remove_prefix(1);
+
         elements_.pop_front();
     }
 
+    void pop_back()
+    {
+        if (!valid_ || elements_.empty())
+            return;
+
+        path_.remove_suffix(elements_.back().size());
+        if (!path_.empty() && path_.back() == path_separator)
+            path_.remove_suffix(1);
+
+        elements_.pop_back();
+    }
+
+    // TODO: add noexcept-s
     [[nodiscard]] size_t size() const
     {
-        return elements_.size();
+        return valid_ ? elements_.size() : 0;
     }
 
     [[nodiscard]] std::string str() const
     {
-        return std::string(path_);
+        return valid_ ? std::string(path_) : "";
     }
 
-private:
-    void parse(std::string_view path)
+    operator std::string_view() const
     {
-        size_t start = 0;
+        return valid_ ? path_ : "";
+    }
 
+  private:
+    bool parse(std::string_view path)
+    {
+        // Only alphanumeric characters and path separators are allowed
+        if (!std::all_of(path.begin(), path.end(),
+                         [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == path_separator; }))
+            return false;
+
+        // Split the string by the path separator
+        size_t start = 0;
         while (true)
         {
             const size_t end = path.find(path_separator, start);
@@ -140,19 +105,22 @@ private:
             if (end == std::string_view::npos)
                 break;
 
-            elements_.emplace_back(std::string_view(&path[start], end - start));
+            elements_.emplace_back(&path[start], end - start);
 
             start = end + 1;
         }
 
         if (start < path.size())
-            elements_.emplace_back(std::string_view(&path[start], path.size() - start));
+            elements_.emplace_back(&path[start], path.size() - start);
         else
             elements_.emplace_back("");
 
+        // Check that all path elements are not empty
+        return std::all_of(elements_.begin(), elements_.end(), [](auto element) { return !element.empty(); });
     }
 
     std::string_view path_;
-    std::list<path_element_view> elements_;
+    std::list<std::string_view> elements_;
+    bool valid_;
 };
 } // namespace datastore
