@@ -61,7 +61,7 @@ class node_view
 
     // Retrieves the value associated with the specified name
     template <typename T>
-    [[nodiscard]] auto get_value(const std::string& value_name) const;
+    [[nodiscard]] std::optional<T> get_value(const std::string& value_name) const;
 
     // Retrieves the data type of the value associated with the specified name
     // TODO: implement
@@ -92,17 +92,16 @@ class node_view
 };
 
 template <typename T>
-[[nodiscard]] auto node_view::get_value(const std::string& value_name) const
+[[nodiscard]] std::optional<T> node_view::get_value(const std::string& value_name) const
 {
-    const T* value = nullptr;
     for (const auto node : nodes_)
     {
-        value = node->get_value<T>(value_name);
+        auto value = node->get_value<T>(value_name);
         if (value)
             return value;
     }
 
-    return value;
+    return std::nullopt;
 }
 
 template <typename T, typename>

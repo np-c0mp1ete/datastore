@@ -126,7 +126,7 @@ class node
 
     // Retrieves the value associated with the specified name
     template <typename T, typename = std::enable_if_t<detail::allowed<T>::value>>
-    [[nodiscard]] const T* get_value(const std::string& value_name) const;
+    [[nodiscard]] std::optional<T> get_value(const std::string& value_name) const;
 
     // Retrieves the data type of the value associated with the specified name
     [[nodiscard]] std::optional<value_kind> get_value_kind(const std::string& value_name) const;
@@ -161,14 +161,18 @@ private:
 };
 
 template <typename T, typename>
-[[nodiscard]] const T* node::get_value(const std::string& value_name) const
+[[nodiscard]] std::optional<T> node::get_value(const std::string& value_name) const
 {
     const auto it = values_.find(value_name);
     if (it == values_.end())
-        return nullptr;
-    return std::get_if<T>(&it->second);
+        return std::nullopt;
+
+    // Return by value to avoid clients ending up with dangling pointers
+    auto value = std::get_if<T>(&it->second);
+    return value ? std::make_optional(*value) : std::nullopt;
 }
 
+//TODO: add data size conststraints
 template <typename T, typename>
 void node::set_value(const std::string& value_name, T new_value)
 {

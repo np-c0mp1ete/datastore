@@ -123,7 +123,7 @@ node_view* node_view::open_subnode(path_view subnode_path)
     const auto it = subviews_.find(subnode_name);
     if (it == subviews_.end())
     {
-        const ref* link = get_value<ref>("__link");
+        auto link = get_value<ref>("__link");
         if (link)
         {
             const std::string new_path = link->path + path_view::path_separator + subnode_path.str();

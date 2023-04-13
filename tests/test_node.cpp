@@ -66,5 +66,5 @@ TEST_CASE("Value with the given name can be deleted", "[node]")
     const size_t num_deleted = vol.root()->delete_value("k");
 
     CHECK(num_deleted == 1);
-    CHECK(vol.root()->get_value<std::string>("k") == nullptr);
+    CHECK(!vol.root()->get_value<std::string>("k").has_value());
 }
