@@ -157,6 +157,7 @@ private:
     node* parent_;
     std::unordered_map<std::string, node> subnodes_;
     std::unordered_map<std::string, value_type> values_;
+    bool deleted_ = false;
 };
 
 template <typename T, typename>

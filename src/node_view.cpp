@@ -274,8 +274,8 @@ node_view* node_view::assign_subnode(const std::string& subnode_name, node* subn
 
     subview.nodes_.emplace(subnode);
 
-    auto subnode_names = subnode->get_subnode_names();
-    for each (const auto& name in subnode_names)
+    const auto subnode_names = subnode->get_subnode_names();
+    for (const auto& name : subnode_names)
     {
         subview.assign_subnode(name, subnode->open_subnode(name));
     }

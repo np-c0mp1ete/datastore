@@ -265,6 +265,7 @@ bool serializer::serialize_node(node& n, std::vector<uint8_t>& buffer)
 
     success = success && serialize_u64(static_cast<uint64_t>(n.subnodes_.size()), buffer);
 
+    //TODO: don't serialize deleted nodes
     for (auto& [subnode_name, subnode] : n.subnodes_)
     {
         success = success && serialize_node(subnode, buffer);
@@ -297,6 +298,7 @@ std::optional<volume> serializer::deserialize_volume(std::vector<uint8_t>& buffe
     return vol;
 }
 
+//TODO: use ostream instead of buffer. use overloaded operator <<?
 bool serializer::serialize_volume(volume& vol, std::vector<uint8_t>& buffer)
 {
     bool success = true;

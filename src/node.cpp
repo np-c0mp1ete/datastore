@@ -92,6 +92,8 @@ node* node::create_subnode(path_view subnode_path)
     auto [it, inserted] = subnodes_.emplace(subnode_name, node(subnode_name, volume_, this));
     node* subnode = &it->second;
 
+    subnode->deleted_ = false;
+
     if (subnode_path.composite())
     {
         subnode_path.pop_front();
@@ -103,7 +105,7 @@ node* node::create_subnode(path_view subnode_path)
 
 node* node::open_subnode(path_view subnode_path)
 {
-    if (!subnode_path.valid())
+    if (!subnode_path.valid() || deleted_)
         return nullptr;
 
     const std::string subnode_name = std::string(*subnode_path.front());
@@ -113,6 +115,9 @@ node* node::open_subnode(path_view subnode_path)
         return nullptr;
 
     node* subnode = &it->second;
+    if (subnode->deleted_)
+        return nullptr;
+
     if (subnode_path.composite())
     {
         subnode_path.pop_front();
@@ -140,23 +145,20 @@ size_t node::delete_subnode_tree(path_view subnode_path)
     if (!subnode_path.valid())
         return 0;
 
-    const std::string target_subnode_name = std::string(*subnode_path.back());
-
-    node* target_parent_subnode;
-    if (subnode_path.composite())
-    {
-        subnode_path.pop_back();
-        target_parent_subnode = open_subnode(std::move(subnode_path));
-    }
-    else
-    {
-        target_parent_subnode = this;
-    }
-
-    if (!target_parent_subnode)
+    node* target_subnode = open_subnode(std::move(subnode_path));
+    if (!target_subnode)
         return 0;
 
-    return target_parent_subnode->subnodes_.erase(target_subnode_name);
+    size_t num_deleted = 0;
+    for (auto& [name, subnode] : target_subnode->subnodes_)
+    {
+        num_deleted += target_subnode->delete_subnode_tree(name);
+    }
+
+    num_deleted++;
+    target_subnode->deleted_ = true;
+
+    return num_deleted;
 }
 
 // void node::rename_subnode(const std::string& subnode_name, const std::string& new_subnode_name)
