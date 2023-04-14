@@ -74,23 +74,23 @@ node_view& node_view::operator=(node_view&& rhs) noexcept
     return *this;
 }
 
-node_view* node_view::create_symlink_subnode(path_view subnode_name, const path_view& target_path)
-{
-    if (!subnode_name.valid() || !target_path.valid())
-        return nullptr;
-
-    node_view* subview = create_subnode(std::move(subnode_name));
-    if (!subview)
-        return nullptr;
-
-    subview->set_value("__link", ref{target_path.str()});
-
-    //node_view* target = vault_->root()->open_subnode(target_path);
-
-    //subview->nodes_.insert(target->nodes_.begin(), target->nodes_.end());
-
-    return subview;
-}
+// node_view* node_view::create_symlink_subnode(path_view subnode_name, const path_view& target_path)
+// {
+//     if (!subnode_name.valid() || !target_path.valid())
+//         return nullptr;
+//
+//     node_view* subview = create_subnode(std::move(subnode_name));
+//     if (!subview)
+//         return nullptr;
+//
+//     subview->set_value("__link", ref{target_path.str()});
+//
+//     //node_view* target = vault_->root()->open_subnode(target_path);
+//
+//     //subview->nodes_.insert(target->nodes_.begin(), target->nodes_.end());
+//
+//     return subview;
+// }
 
 node_view* node_view::create_subnode(path_view subnode_path)
 {

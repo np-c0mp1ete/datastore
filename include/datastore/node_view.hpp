@@ -32,7 +32,7 @@ class node_view
 
     // Creates a new subnode as a symbolic link to the target node
     // Target path must be an absolute path from the vault root
-    node_view* create_symlink_subnode(path_view subnode_name, const path_view& target_path);
+    // node_view* create_symlink_subnode(path_view subnode_name, const path_view& target_path);
 
     // Creates a new subnode or opens an existing subnode
     // The subnode can be several levels deep in the volume tree
