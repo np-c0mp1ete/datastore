@@ -36,8 +36,8 @@ int main()
     vault1.root()->open_subnode("vol1.2.4")->set_value("kk", "vv");
     vault1.root()->open_subnode("vol1.2")->delete_subnode_tree("4");
 
-    vault1.root()->load_subnode("vol2", vol2.root());
-    vault1.root()->open_subnode("vol2")->load_subnode("2", vol2.root()->open_subnode("7"));
+    vault1.root()->open_subnode("vol1.8.5")->load_subnode("vol2", vol2.root());
+    vault1.root()->open_subnode("vol1.8.5.vol2")->load_subnode("2", vol2.root()->open_subnode("7"));
 
     std::cout << "vault1: " << *vault1.root() << std::endl;
 }

@@ -2,6 +2,9 @@
 
 #include "datastore/volume.hpp"
 
+#include <set>
+#include <unordered_set>
+
 namespace datastore
 {
 std::ostream& operator<<(std::ostream& lhs, const value_type& rhs)
@@ -202,15 +205,14 @@ std::optional<value_kind> node::get_value_kind(const std::string& value_name) co
     return static_cast<value_kind>(it->second.index());
 }
 
-std::vector<std::string> node::get_value_names()
+std::unordered_set<std::string> node::get_value_names()
 {
     // Copy strings to avoid scenarios when a value gets deleted
     // and the caller is left with a dangling pointer
-    std::vector<std::string> names;
-    names.reserve(values_.size());
+    std::unordered_set<std::string> names;
     for (const auto& [name, value] : values_)
     {
-        names.emplace_back(name);
+        names.emplace(name);
     }
     return names;
 }

@@ -8,6 +8,9 @@
 
 #include "datastore/path_view.hpp"
 
+#include <set>
+#include <unordered_set>
+
 namespace datastore
 {
 class node_view;
@@ -136,7 +139,7 @@ class node
     void set_value(const std::string& value_name, T new_value);
 
     // Retrieves an array of strings that contains all the value names associated with this node
-    std::vector<std::string> get_value_names();
+    std::unordered_set<std::string> get_value_names();
 
     std::string_view name();
 
