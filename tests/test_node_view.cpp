@@ -45,6 +45,29 @@ TEST_CASE("Volume nodes can be loaded into a node view", "[node_view]")
     CHECK(vol_view->get_value<std::string>("k1") == "v1");
 }
 
+TEST_CASE("Volume nodes can be unloaded from a node view", "[node_view]")
+{
+    datastore::volume vol(datastore::volume::priority_class::medium);
+    vol.root()->create_subnode("1.2.3");
+
+    datastore::vault vault;
+
+    CHECK(vault.root()->get_subnode_names().empty());
+
+    auto subnode = vault.root()->load_subnode("vol", vol.root());
+    size_t num_unloaded = vault.root()->unload_subnode("vol");
+
+    CHECK(num_unloaded == 4);
+    CHECK(vault.root()->get_subnode_names().empty());
+    CHECK(vault.root()->open_subnode("vol") == nullptr);
+    CHECK(vault.root()->open_subnode("vol.1") == nullptr);
+    CHECK(vault.root()->open_subnode("vol.1.2") == nullptr);
+    CHECK(vault.root()->open_subnode("vol.1.2.3") == nullptr);
+
+    CHECK(subnode->create_subnode("1") == nullptr);
+    CHECK(subnode->name().empty());
+}
+
 TEST_CASE("In case of conflicting names, value is taken from a volume with a higher priority", "[node_view]")
 {
     datastore::volume vol1(datastore::volume::priority_class::low);

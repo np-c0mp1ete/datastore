@@ -94,7 +94,7 @@ node_view& node_view::operator=(node_view&& rhs) noexcept
 
 node_view* node_view::create_subnode(path_view subnode_path)
 {
-    if (!subnode_path.valid())
+    if (!subnode_path.valid() || invalid_)
         return nullptr;
 
     //TODO: always takes the node with the highest precedence
@@ -108,6 +108,11 @@ node_view* node_view::create_subnode(path_view subnode_path)
 
     node_view& subview = it->second;
 
+    if (!inserted)
+    {
+        subview.invalid_ = false;
+    }
+
     subview.nodes_.emplace(subnode);
 
     return &subview;
@@ -115,7 +120,7 @@ node_view* node_view::create_subnode(path_view subnode_path)
 
 node_view* node_view::open_subnode(path_view subnode_path)
 {
-    if (!subnode_path.valid())
+    if (!subnode_path.valid() || invalid_)
         return nullptr;
 
     const std::string subnode_name = std::string(subnode_path.front().value());
@@ -133,6 +138,8 @@ node_view* node_view::open_subnode(path_view subnode_path)
     }
 
     node_view* subnode = &it->second;
+    if (subnode->invalid_)
+        return nullptr;
 
     if (subnode_path.composite())
     {
@@ -211,6 +218,8 @@ std::unordered_set<std::string> node_view::get_subnode_names() const
     std::unordered_set<std::string> names;
     for (const auto& [name, subnode] : subviews_)
     {
+        if (subnode.invalid_)
+            continue;
         names.insert(name);
     }
     return names;
@@ -254,6 +263,8 @@ std::unordered_set<std::string> node_view::get_value_names() const
 
 std::string_view node_view::name()
 {
+    if (invalid_)
+        return "";
     return name_;
 }
 
@@ -326,5 +337,29 @@ node_view* node_view::load_subnode(path_view subnode_name, node* subnode)
     }
 
     return &subview;
+}
+
+size_t node_view::unload_subnode(path_view subnode_path)
+{
+    if (!subnode_path.valid())
+        return 0;
+
+    node_view* target_subnode = open_subnode(std::move(subnode_path));
+    if (!target_subnode)
+        return 0;
+
+    size_t num_unloaded = 0;
+    for (auto& [name, subnode] : target_subnode->subviews_)
+    {
+        num_unloaded += target_subnode->unload_subnode(name);
+    }
+
+    num_unloaded += target_subnode->nodes_.size();
+    target_subnode->nodes_.clear();
+
+    // Not deleting subviews to avoid dangling pointers on clients' hands
+    target_subnode->invalid_ = true;
+
+    return num_unloaded;
 }
 }

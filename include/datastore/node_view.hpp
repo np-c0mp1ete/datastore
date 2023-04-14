@@ -44,8 +44,8 @@ class node_view
     node_view* load_subnode(path_view subnode_name, node* subnode);
 
     // Unloads the specified subnode and its subnodes from the vault
-    // The subnode referred to by the subnode_path parameter must have been created by using the load_subnode function.
-    void unload_subnode(path_view subnode_path);
+    // This function removes a subnode from the vault but does not modify the volume containing the information.
+    size_t unload_subnode(path_view subnode_path);
 
     // Deletes the specified subnode
     // The subnode can be several levels deep in the volume tree
@@ -96,6 +96,7 @@ class node_view
     node_view* parent_;
     std::unordered_map<std::string, node_view> subviews_;
     std::set<node*, decltype(&detail::compare_nodes)> nodes_;
+    bool invalid_ = false;
 };
 
 template <typename T>
