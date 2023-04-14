@@ -9,21 +9,13 @@ TEST_CASE("Volumes can be stored to disk and loaded back", "[volume]")
 {
     using namespace datastore::literals;
 
-    datastore::volume vol1(1);
+    datastore::volume vol1(datastore::volume::priority_class::medium);
     vol1.root()->set_value("u32", 1_u32);
     vol1.root()->set_value("u64", 2_u64);
     vol1.root()->set_value("f32", 2.0f);
     vol1.root()->set_value("f64", 1.0);
     vol1.root()->set_value("str", "lorem ipsum");
     vol1.root()->set_value("bin", datastore::binary_blob_t{0xd, 0xe, 0xa, 0xd});
-
-    // vol1 (priority=1):
-    // "u32": 1u32
-    // "u64": 2u64
-    // "f32": 2.0f
-    // "f64": 1.0d
-    // "str": "lorem ipsum"
-    // "bin": {0xd, 0xe, 0xa, 0xd}
 
     CHECK(vol1.unload("vol1.vol"));
 

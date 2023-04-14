@@ -7,7 +7,7 @@ using namespace datastore::literals;
 
 TEST_CASE("Volume nodes can be loaded into a node view", "[node_view]")
 {
-    datastore::volume vol(1);
+    datastore::volume vol(datastore::volume::priority_class::medium);
     vol.root()->set_value("k", "v");
 
     datastore::vault vault;
@@ -47,10 +47,10 @@ TEST_CASE("Volume nodes can be loaded into a node view", "[node_view]")
 
 TEST_CASE("In case of conflicting names, value is taken from a volume with a higher priority", "[node_view]")
 {
-    datastore::volume vol1(1);
+    datastore::volume vol1(datastore::volume::priority_class::low);
     vol1.root()->set_value("k", "v1");
 
-    datastore::volume vol2(2);
+    datastore::volume vol2(datastore::volume::priority_class::medium);
     vol2.root()->set_value("k", 0_u32);
 
     datastore::vault vault;
@@ -70,7 +70,7 @@ TEST_CASE("In case of conflicting names, value is taken from a volume with a hig
 
 TEST_CASE("Same volume node can be loaded multiple times into different node views", "[node_view]")
 {
-    datastore::volume vol1(1);
+    datastore::volume vol1(datastore::volume::priority_class::medium);
     vol1.root()->set_value("k", 0_u32);
 
     datastore::vault vault;
@@ -102,7 +102,7 @@ TEST_CASE("Same volume node can be loaded multiple times into different node vie
 
 TEST_CASE("Node can be used in multiple vaults at the same time", "[vault]")
 {
-    datastore::volume vol(1);
+    datastore::volume vol(datastore::volume::priority_class::medium);
 
     datastore::vault vault1;
     vault1.root()->load_subnode("vol", vol.root());

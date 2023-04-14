@@ -7,7 +7,7 @@
 
 int main()
 {
-    datastore::volume vol1(2);
+    datastore::volume vol1(datastore::volume::priority_class::medium);
     vol1.root()->create_subnode("1.3");
     vol1.root()->create_subnode("8.4");
     vol1.root()->create_subnode("8.5");
@@ -21,7 +21,7 @@ int main()
     // std::cout << "test: " << *test.root() << std::endl;
 
 
-    datastore::volume vol2(1);
+    datastore::volume vol2(datastore::volume::priority_class::medium);
     vol2.root()->create_subnode("2")->create_subnode("9");
     vol2.root()->create_subnode("7")->set_value("k3", "v");
 

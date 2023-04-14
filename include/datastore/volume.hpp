@@ -24,7 +24,20 @@ class volume
     friend class serializer;
 
   public:
+    // Higher number -> higher priority
     using priority_t = uint8_t;
+
+    // Predefined values can be used for simplicity
+    enum priority_class : priority_t
+    {
+        lowest = 0,
+        low = 25,
+        below_medium = 50,
+        medium = 100,
+        above_medium = 150,
+        high = 200,
+        highest = 255
+    };
 
     static const inline std::vector<uint8_t> signature = {'=', 'V', 'O', 'L'};
 
