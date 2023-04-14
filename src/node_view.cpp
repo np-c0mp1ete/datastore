@@ -204,7 +204,17 @@ size_t node_view::delete_subnode_tree(path_view subnode_path)
     return num_deleted;
 }
 
-
+std::unordered_set<std::string> node_view::get_subnode_names() const
+{
+    // Copy strings to avoid scenarios when a subnode gets deleted
+    // and the caller is left with a dangling pointer
+    std::unordered_set<std::string> names;
+    for (const auto& [name, subnode] : subviews_)
+    {
+        names.insert(name);
+    }
+    return names;
+}
 
 
 size_t node_view::delete_value(const std::string& value_name)
@@ -216,6 +226,30 @@ size_t node_view::delete_value(const std::string& value_name)
     }
 
     return 0;
+}
+
+std::optional<value_kind> node_view::get_value_kind(const std::string& value_name) const
+{
+    for (const auto node : nodes_)
+    {
+        if (const auto kind = node->get_value_kind(value_name))
+            return kind;
+    }
+
+    return std::nullopt;
+}
+
+std::unordered_set<std::string> node_view::get_value_names() const
+{
+    // Copy strings to avoid scenarios when a subnode gets deleted
+    // and the caller is left with a dangling pointer
+    std::unordered_set<std::string> names;
+    for (const auto node : nodes_)
+    {
+        auto&& value_names = node->get_value_names();
+        names.insert(value_names.begin(), value_names.end());
+    }
+    return names;
 }
 
 std::string_view node_view::name()

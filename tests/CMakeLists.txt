@@ -8,8 +8,8 @@ FetchContent_MakeAvailable(Catch2)
 
 add_executable(tests
     test_node.cpp
+    test_node_view.cpp
     test_path_view.cpp
-    test_vault.cpp
     test_volume.cpp
 )
 

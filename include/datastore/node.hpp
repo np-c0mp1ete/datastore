@@ -121,7 +121,7 @@ class node
     // void rename_subnode(const std::string& subnode_name, const std::string& new_subnode_name);
 
     // Retrieves an array of strings that contains all the subnode names
-    std::vector<std::string> get_subnode_names();
+    std::unordered_set<std::string> get_subnode_names();
 
 
     // Deletes the specified value from this node

@@ -178,15 +178,15 @@ size_t node::delete_subnode_tree(path_view subnode_path)
 //     subnodes_.erase(subnode_name);
 // }
 
-std::vector<std::string> node::get_subnode_names()
+std::unordered_set<std::string> node::get_subnode_names()
 {
     // Copy strings to avoid scenarios when a subnode gets deleted
     // and the caller is left with a dangling pointer
-    std::vector<std::string> names;
+    std::unordered_set<std::string> names;
     names.reserve(subnodes_.size());
     for (const auto& [name, subnode] : subnodes_)
     {
-        names.emplace_back(name);
+        names.emplace(name);
     }
     return names;
 }

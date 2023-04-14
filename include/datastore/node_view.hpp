@@ -20,8 +20,6 @@ class node_view
     friend std::ostream& operator<<(std::ostream& lhs, const node_view& rhs);
 
   public:
-    node_view(const std::string& name, vault* vault, node_view* parent);
-
     [[nodiscard]] node_view(const node_view& other) noexcept;
 
     [[nodiscard]] node_view(node_view&& other) noexcept;
@@ -63,6 +61,10 @@ class node_view
     // TODO: remove
     // void rename_subnode(const std::string& subnode_name, const std::string& new_subnode_name);
 
+    // Retrieves an array of strings that contains all the subnode names
+    [[nodiscard]] std::unordered_set<std::string> get_subnode_names() const;
+
+
     // Deletes the specified value from this node
     size_t delete_value(const std::string& value_name);
 
@@ -71,22 +73,22 @@ class node_view
     [[nodiscard]] std::optional<T> get_value(const std::string& value_name) const;
 
     // Retrieves the data type of the value associated with the specified name
-    // TODO: implement
-    std::optional<value_kind> get_value_kind(const std::string& value_name);
+    [[nodiscard]] std::optional<value_kind> get_value_kind(const std::string& value_name) const;
 
     // Sets the value of a name/value pair in the node
     template <typename T, typename = std::enable_if_t<std::is_constructible_v<value_type, T>>>
     void set_value(const std::string& value_name, T new_value);
 
     // Retrieves an array of strings that contains all the value names associated with this node
-    // TODO: implement
-    std::vector<std::string_view> get_value_names();
+    [[nodiscard]] std::unordered_set<std::string> get_value_names() const;
 
     std::string_view name();
 
     [[nodiscard]] std::string path() const;
 
   private:
+    node_view(const std::string& name, vault* vault, node_view* parent);
+
     void set_vault(vault* vault);
 
     std::string name_;
