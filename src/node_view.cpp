@@ -74,7 +74,7 @@ node_view& node_view::operator=(node_view&& rhs) noexcept
     return *this;
 }
 
-node_view* node_view::create_link_subnode(path_view subnode_name, const path_view& target_path)
+node_view* node_view::create_symlink_subnode(path_view subnode_name, const path_view& target_path)
 {
     if (!subnode_name.valid() || !target_path.valid())
         return nullptr;
@@ -266,9 +266,20 @@ void node_view::set_vault(vault* vault)
     }
 }
 
-node_view* node_view::assign_subnode(const std::string& subnode_name, node* subnode)
+node_view* node_view::load_subnode(path_view subnode_name, node* subnode)
 {
-    auto [it, inserted] = subviews_.emplace(subnode_name, node_view(subnode_name, vault_, this));
+    if (!subnode_name.valid() || subnode_name.composite())
+        return nullptr;
+
+    std::string target_subnode_name = std::string(*subnode_name.back());
+
+    node_view* target_parent_subnode = this;
+
+    if (!target_parent_subnode)
+        return nullptr;
+
+    auto [it, inserted] = target_parent_subnode->subviews_.emplace(
+        target_subnode_name, node_view(target_subnode_name, vault_, target_parent_subnode));
 
     node_view& subview = it->second;
 
@@ -277,7 +288,7 @@ node_view* node_view::assign_subnode(const std::string& subnode_name, node* subn
     const auto subnode_names = subnode->get_subnode_names();
     for (const auto& name : subnode_names)
     {
-        subview.assign_subnode(name, subnode->open_subnode(name));
+        subview.load_subnode(name, subnode->open_subnode(name));
     }
 
     return &subview;

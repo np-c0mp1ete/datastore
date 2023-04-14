@@ -31,13 +31,13 @@ int main()
 
     
     datastore::vault vault1;
-    vault1.load_subnode("vol1", "vol1.vol");
-    vault1.root()->open_subnode("vol1")->create_link_subnode("2", "vol1.8");
+    vault1.root()->load_subnode("vol1", vol1.root());
+    vault1.root()->open_subnode("vol1")->create_symlink_subnode("2", "vol1.8");
     vault1.root()->open_subnode("vol1.2.4")->set_value("kk", "vv");
     vault1.root()->open_subnode("vol1.2")->delete_subnode_tree("4");
 
-    vault1.load_subnode("vol2", "vol2.vol");
-    vault1.root()->open_subnode("vol2")->create_link_subnode("2", "vol2.7");
+    vault1.root()->load_subnode("vol2", vol2.root());
+    vault1.root()->open_subnode("vol2")->create_symlink_subnode("2", "vol2.7");
 
     std::cout << "vault1: " << *vault1.root() << std::endl;
 }

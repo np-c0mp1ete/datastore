@@ -32,7 +32,7 @@ class node_view
 
     // Creates a new subnode as a symbolic link to the target node
     // Target path must be an absolute path from the vault root
-    node_view* create_link_subnode(path_view subnode_name, const path_view& target_path);
+    node_view* create_symlink_subnode(path_view subnode_name, const path_view& target_path);
 
     // Creates a new subnode or opens an existing subnode
     // The subnode can be several levels deep in the volume tree
@@ -41,6 +41,13 @@ class node_view
     // Retrieves the specified subnode
     // The subnode can be several levels deep in the volume tree
     node_view* open_subnode(path_view subnode_path);
+
+    // Creates a subnode and loads the data from the specified node into that subnode
+    node_view* load_subnode(path_view subnode_name, node* subnode);
+
+    // Unloads the specified subnode and its subnodes from the vault
+    // The subnode referred to by the subnode_path parameter must have been created by using the load_subnode function.
+    void unload_subnode(path_view subnode_path);
 
     // Deletes the specified subnode
     // The subnode can be several levels deep in the volume tree
@@ -81,8 +88,6 @@ class node_view
 
   private:
     void set_vault(vault* vault);
-
-    node_view* assign_subnode(const std::string& subnode_name, node* subnode);
 
     std::string name_;
     vault* vault_;
