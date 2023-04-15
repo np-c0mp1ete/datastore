@@ -11,11 +11,27 @@ class vault;
 namespace detail
 {
 bool compare_nodes(const node* n1, const node* n2);
-}
+
+
+class node_observer
+{
+  public:
+    node_observer(node_view* watcher) : watcher_(watcher)
+    {
+    }
+
+    void on_create_subnode(node* subnode) const;
+
+private:
+    node_view* watcher_;
+};
+} // namespace detail
+
 
 class node_view
 {
     friend class vault;
+    friend class detail::node_observer;
 
     friend std::ostream& operator<<(std::ostream& lhs, const node_view& rhs);
 
@@ -23,6 +39,8 @@ class node_view
     [[nodiscard]] node_view(const node_view& other) noexcept;
 
     [[nodiscard]] node_view(node_view&& other) noexcept;
+
+    ~node_view() noexcept;
 
     node_view& operator=(const node_view& rhs) noexcept;
 
@@ -97,6 +115,7 @@ class node_view
     std::unordered_map<std::string, node_view> subviews_;
     std::set<node*, decltype(&detail::compare_nodes)> nodes_;
     bool invalid_ = false;
+    detail::node_observer observer_;
 };
 
 template <typename T>

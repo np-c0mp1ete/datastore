@@ -1,5 +1,6 @@
 #include "datastore/node.hpp"
 
+#include "datastore/node_view.hpp"
 #include "datastore/volume.hpp"
 
 #include <set>
@@ -102,6 +103,9 @@ node* node::create_subnode(path_view subnode_path)
         subnode_path.pop_front();
         return subnode->create_subnode(std::move(subnode_path));
     }
+
+    for (auto observer : observers_)
+        observer->on_create_subnode(subnode);
 
     return subnode;
 }
@@ -251,6 +255,16 @@ void node::set_volume(volume* volume)
     {
         subnode.set_volume(volume);
     }
+}
+
+void node::register_observer(detail::node_observer* observer)
+{
+    observers_.push_back(observer);
+}
+
+void node::unregister_observer(detail::node_observer* observer)
+{
+    observers_.remove(observer);
 }
 
 std::ostream& operator<<(std::ostream& lhs, const node& rhs)

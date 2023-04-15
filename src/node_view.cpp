@@ -13,29 +13,64 @@ bool compare_nodes(const node* n1, const node* n2)
 
     return n1 > n2;
 }
+
+void node_observer::on_create_subnode(node* subnode) const
+{
+    auto [it, inserted] = watcher_->subviews_.emplace(
+        subnode->name(), node_view(std::string(subnode->name()), watcher_->vault_, watcher_));
+
+    node_view& subview = it->second;
+
+    if (!inserted)
+    {
+        subview.invalid_ = false;
+    }
+
+    subview.nodes_.emplace(subnode);
+}
 } // namespace detail
 
 node_view::node_view(const std::string& name, vault* vault, node_view* parent)
-    : name_(name), vault_(vault), parent_(parent), nodes_(&detail::compare_nodes)
+    : name_(name), vault_(vault), parent_(parent), nodes_(&detail::compare_nodes), observer_(this)
 {
 }
 
+//TODO: should node views be copyable?
 [[nodiscard]] node_view::node_view(const node_view& other) noexcept
-    : name_(other.name_), vault_(other.vault_), parent_(other.parent_), subviews_(other.subviews_), nodes_(other.nodes_)
+    : name_(other.name_), vault_(other.vault_), parent_(other.parent_), subviews_(other.subviews_),
+      nodes_(other.nodes_), observer_(this)
 {
     for (auto& [name, subnode] : subviews_)
     {
         subnode.parent_ = this;
     }
+
+    for (auto node : nodes_)
+    {
+        node->register_observer(&observer_);
+    }
 }
 
 [[nodiscard]] node_view::node_view(node_view&& other) noexcept
     : name_(std::move(other.name_)), vault_(other.vault_), parent_(other.parent_),
-      subviews_(std::move(other.subviews_)), nodes_(std::move(other.nodes_))
+      subviews_(std::move(other.subviews_)), nodes_(std::move(other.nodes_)), observer_(this)
 {
     for (auto& [name, subnode] : subviews_)
     {
         subnode.parent_ = this;
+    }
+
+    for (auto node : nodes_)
+    {
+        node->register_observer(&observer_);
+    }
+}
+
+node_view::~node_view() noexcept
+{
+    for (auto node : nodes_)
+    {
+        node->unregister_observer(&observer_);
     }
 }
 
@@ -55,6 +90,11 @@ node_view& node_view::operator=(const node_view& rhs) noexcept
         subnode.parent_ = this;
     }
 
+    for (auto node : nodes_)
+    {
+        node->register_observer(&observer_);
+    }
+
     return *this;
 }
 
@@ -69,6 +109,11 @@ node_view& node_view::operator=(node_view&& rhs) noexcept
     for (auto& [name, subnode] : subviews_)
     {
         subnode.parent_ = this;
+    }
+
+    for (auto node : nodes_)
+    {
+        node->register_observer(&observer_);
     }
 
     return *this;
@@ -97,7 +142,7 @@ node_view* node_view::create_subnode(path_view subnode_path)
     if (!subnode_path.valid() || invalid_)
         return nullptr;
 
-    //TODO: always takes the node with the highest precedence
+    // TODO: always takes the node with the highest precedence
     node* n = *nodes_.begin();
     const std::string subnode_name = std::string(subnode_path.front().value());
     node* subnode = n->create_subnode(std::move(subnode_path));
@@ -123,21 +168,16 @@ node_view* node_view::open_subnode(path_view subnode_path)
     if (!subnode_path.valid() || invalid_)
         return nullptr;
 
-    const std::string subnode_name = std::string(subnode_path.front().value());
+    const std::string subnode_name = std::string(*subnode_path.front());
 
     const auto it = subviews_.find(subnode_name);
     if (it == subviews_.end())
     {
-        auto link = get_value<ref>("__link");
-        if (link)
-        {
-            const std::string new_path = link->path + path_view::path_separator + subnode_path.str();
-            return vault_->root()->open_subnode(new_path);
-        }
         return nullptr;
     }
 
-    node_view* subnode = &it->second;
+    node_view*  subnode = &it->second;
+
     if (subnode->invalid_)
         return nullptr;
 
@@ -225,7 +265,6 @@ std::unordered_set<std::string> node_view::get_subnode_names() const
     return names;
 }
 
-
 size_t node_view::delete_value(const std::string& value_name)
 {
     for (const auto node : nodes_)
@@ -288,8 +327,8 @@ std::ostream& operator<<(std::ostream& lhs, const node_view& rhs)
     {
         for (const auto& [name, value] : node->values_)
         {
-            lhs << "--> " << static_cast<size_t>(node->priority()) << ": " << node->path() << "."  << name << " = " << value
-                << std::endl;
+            lhs << "--> " << static_cast<size_t>(node->priority()) << ": " << node->path() << "." << name << " = "
+                << value << std::endl;
         }
     }
 
@@ -329,6 +368,7 @@ node_view* node_view::load_subnode(path_view subnode_name, node* subnode)
     node_view& subview = it->second;
 
     subview.nodes_.emplace(subnode);
+    subnode->register_observer(&subview.observer_);
 
     const auto subnode_names = subnode->get_subnode_names();
     for (const auto& name : subnode_names)
@@ -362,4 +402,4 @@ size_t node_view::unload_subnode(path_view subnode_path)
 
     return num_unloaded;
 }
-}
+} // namespace datastore

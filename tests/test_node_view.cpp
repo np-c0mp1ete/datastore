@@ -136,3 +136,15 @@ TEST_CASE("Node can be used in multiple vaults at the same time", "[vault]")
     CHECK(vault1.root()->open_subnode("vol") != nullptr);
     CHECK(vault2.root()->open_subnode("vol") != nullptr);
 }
+
+TEST_CASE("Node view picks up the changes to the underlying nodes", "[node_view]")
+{
+    datastore::volume vol(datastore::volume::priority_class::medium);
+
+    datastore::vault vault1;
+    vault1.root()->load_subnode("vol", vol.root());
+
+    vol.root()->create_subnode("1");
+
+    CHECK(vault1.root()->open_subnode("vol.1") != nullptr);
+}

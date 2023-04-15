@@ -9,6 +9,7 @@
 
 namespace datastore
 {
+//TODO: move to detail namespace
 class serializer
 {
 public:

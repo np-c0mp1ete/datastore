@@ -66,6 +66,8 @@ struct is_one_of<T, std::variant<Ts...>> : std::bool_constant<(std::is_same_v<T,
 
 template <class T>
 using allowed = is_one_of<T, value_type>;
+
+class node_observer;
 } // namespace detail
 
 namespace literals
@@ -85,6 +87,8 @@ class node
 {
     friend class serializer;
     friend class volume;
+    friend class detail::node_observer;
+    friend class node_view;
 
     friend std::ostream& operator<<(std::ostream& lhs, const node& rhs);
     friend std::ostream& operator<<(std::ostream& lhs, const node_view& rhs);
@@ -155,11 +159,17 @@ private:
 
     void set_volume(volume* volume);
 
+    void register_observer(detail::node_observer* observer);
+
+    void unregister_observer(detail::node_observer* observer);
+
+  private:
     std::string name_;
     volume* volume_;
     node* parent_;
     std::unordered_map<std::string, node> subnodes_;
     std::unordered_map<std::string, value_type> values_;
+    std::list<detail::node_observer*> observers_;
     bool deleted_ = false;
 };
 

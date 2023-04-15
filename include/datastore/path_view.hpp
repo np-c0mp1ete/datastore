@@ -17,6 +17,7 @@ class path_view
     template <typename T, typename = std::enable_if_t<std::is_constructible_v<std::string_view, T>>>
     path_view(T&& path) : path_(std::forward<T>(path))
     {
+        //TODO: don't reparse if was parsed before
         valid_ = parse(path);
     }
 
