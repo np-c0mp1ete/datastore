@@ -8,11 +8,13 @@
 namespace datastore
 {
 // Paths in the form "^[a-zA-Z0-9]+(\.[a-zA-Z0-9]+)*$" are supported, e.g. "abc" or "a.b.c"
-// Only alphanumeric path elements are allowed
+// Only alphanumeric path elements are allowed, max length: 1024 characters
 class path_view
 {
   public:
     constexpr static char path_separator = '.';
+    constexpr static size_t max_path_size_bytes = 1024;
+    constexpr static size_t max_path_depth = 32;
 
     template <typename T, typename = std::enable_if_t<std::is_constructible_v<std::string_view, T>>>
     path_view(T&& path) : path_(std::forward<T>(path))
@@ -92,9 +94,16 @@ class path_view
   private:
     bool parse(std::string_view path)
     {
+        if (path.size() > max_path_size_bytes)
+            return false;
+
         // Only alphanumeric characters and path separators are allowed
         if (!std::all_of(path.begin(), path.end(),
                          [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == path_separator; }))
+            return false;
+
+        // Check against path depth limit
+        if (static_cast<size_t>(std::count(path.begin(), path.end(), path_separator)) > max_path_depth)
             return false;
 
         // Split the string by the path separator

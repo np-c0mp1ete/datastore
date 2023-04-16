@@ -42,6 +42,8 @@ class volume
 
     static const inline std::vector<uint8_t> signature = {'=', 'V', 'O', 'L'};
 
+    constexpr static size_t max_tree_depth = 512;
+
     volume(priority_t priority);
 
     [[nodiscard]] volume(const volume& other) noexcept;

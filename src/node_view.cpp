@@ -28,6 +28,16 @@ void node_observer::on_create_subnode(node* subnode) const
 
     subview.nodes_.emplace(subnode);
 }
+
+void node_observer::on_delete_subnode(node* subnode) const
+{
+    //TODO: it's incorrect to check node name, node_views might have a different name
+    auto it = watcher_->subviews_.find(subnode->name_);
+    node_view& subview = it->second;
+    subview.nodes_.erase(subnode);
+    if (subview.nodes_.empty())
+        subview.invalid_ = true;
+}
 } // namespace detail
 
 node_view::node_view(const std::string& name, vault* vault, node_view* parent)

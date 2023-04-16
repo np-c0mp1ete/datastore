@@ -91,6 +91,16 @@ node* node::create_subnode(path_view subnode_path)
     if (!subnode_path.valid())
         return nullptr;
 
+    size_t depth = 0;
+    const node* parent = parent_;
+    while (parent)
+    {
+        depth++;
+        parent = parent->parent_;
+    }
+    if (depth > volume::max_tree_depth)
+        return nullptr;
+
     std::string subnode_name = std::string(*subnode_path.front());
 
     auto [it, inserted] = subnodes_.emplace(subnode_name, node(subnode_name, volume_, this));
@@ -164,6 +174,11 @@ size_t node::delete_subnode_tree(path_view subnode_path)
 
     num_deleted++;
     target_subnode->deleted_ = true;
+
+    for (auto observer : target_subnode->parent_->observers_)
+    {
+        observer->on_delete_subnode(target_subnode);
+    }
 
     return num_deleted;
 }

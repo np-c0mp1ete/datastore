@@ -21,6 +21,7 @@ class node_observer
     }
 
     void on_create_subnode(node* subnode) const;
+    void on_delete_subnode(node* subnode) const;
 
 private:
     node_view* watcher_;

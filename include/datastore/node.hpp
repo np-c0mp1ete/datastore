@@ -35,7 +35,12 @@ struct ref
 
 using binary_blob_t = std::vector<uint8_t>;
 
+//TODO: remove ref type
 using value_type = std::variant<uint32_t, uint64_t, float, double, std::string, binary_blob_t, ref>;
+
+constexpr size_t max_value_name_size_bytes = 255;
+constexpr size_t max_str_value_size_bytes = 1ull * 1024;
+constexpr size_t max_bin_value_size_bytes = 1ull * 1024;
 
 template <class T>
 constexpr auto to_underlying(T value) noexcept
@@ -94,6 +99,8 @@ class node
     friend std::ostream& operator<<(std::ostream& lhs, const node_view& rhs);
 
   public:
+    static constexpr size_t max_num_values = 255;
+
     [[nodiscard]] node(const node& other) noexcept;
 
     [[nodiscard]] node(node&& other) noexcept;
@@ -140,7 +147,7 @@ class node
 
     // Sets the value of a name/value pair in the node
     template <typename T, typename = std::enable_if_t<std::is_constructible_v<value_type, T>>>
-    void set_value(const std::string& value_name, T new_value);
+    bool set_value(const std::string& value_name, T new_value);
 
     // Retrieves an array of strings that contains all the value names associated with this node
     std::unordered_set<std::string> get_value_names();
@@ -185,10 +192,31 @@ template <typename T, typename>
     return value ? std::make_optional(*value) : std::nullopt;
 }
 
-//TODO: add data size conststraints
+//TODO: cleanup data size conststraints code
 template <typename T, typename>
-void node::set_value(const std::string& value_name, T new_value)
+bool node::set_value(const std::string& value_name, T new_value)
 {
-    values_[value_name] = new_value;
+    if (value_name.size() > max_value_name_size_bytes)
+    {
+        return false;
+    }
+
+    value_type value = new_value;
+    const value_kind kind = static_cast<value_kind>(value.index());
+    if (kind == value_kind::str && std::get<std::string>(value).size() > max_str_value_size_bytes)
+    {
+        return false;
+    }
+    if (kind == value_kind::bin && std::get<binary_blob_t>(value).size() > max_bin_value_size_bytes)
+    {
+        return false;
+    }
+
+    const auto it = values_.find(value_name);
+    if (it == values_.end() && values_.size() >= max_num_values)
+        return false;
+
+    values_[value_name] = std::move(value);
+    return true;
 }
 } // namespace datastore
