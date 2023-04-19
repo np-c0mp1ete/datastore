@@ -10,7 +10,19 @@ namespace datastore
 {
 namespace
 {
-// TODO: take care of endianness
+enum class endian
+{
+#ifdef _WIN32
+    little = 0,
+    big = 1,
+    native = little
+#else
+    little = __ORDER_LITTLE_ENDIAN__,
+    big = __ORDER_BIG_ENDIAN__,
+    native = __BYTE_ORDER__
+#endif
+};
+
 std::optional<value_type> deserialize_u32(std::vector<uint8_t>& buffer, size_t& pos)
 {
     if (pos >= buffer.size() || buffer.size() - pos < sizeof(uint32_t))
@@ -201,13 +213,13 @@ static_assert(std::get<value_kind>(serializers[6]) == value_kind::ref);
 static_assert(serializers.size() == to_underlying(value_kind::_count));
 }
 
-
+namespace detail
+{
 #define DESERIALIZE_OPT(type, var, func)                                                                               \
     opt = func(buffer, pos);                                                                                           \
     if (!opt)                                                                                                          \
         return std::nullopt;                                                                                           \
     auto var = std::get<type>(opt.value());
-
 
 std::optional<node> serializer::deserialize_node(volume& vol, node* parent, std::vector<uint8_t>& buffer, size_t& pos)
 {
@@ -265,7 +277,7 @@ bool serializer::serialize_node(node& n, std::vector<uint8_t>& buffer)
 
     success = success && serialize_u64(static_cast<uint64_t>(n.subnodes_.size()), buffer);
 
-    //TODO: don't serialize deleted nodes
+    // TODO: don't serialize deleted nodes
     for (auto& [subnode_name, subnode] : n.subnodes_)
     {
         success = success && serialize_node(subnode, buffer);
@@ -283,6 +295,10 @@ std::optional<volume> serializer::deserialize_volume(std::vector<uint8_t>& buffe
     if (signature != volume::signature)
         return std::nullopt;
 
+    DESERIALIZE_OPT(uint32_t, endianness, deserialize_u32)
+    if (static_cast<endian>(endianness) != endian::native)
+        return std::nullopt;
+
     DESERIALIZE_OPT(uint64_t, priority, deserialize_u64)
 
     volume vol(static_cast<volume::priority_t>(priority));
@@ -298,18 +314,19 @@ std::optional<volume> serializer::deserialize_volume(std::vector<uint8_t>& buffe
     return vol;
 }
 
-//TODO: use ostream instead of buffer. use overloaded operator <<?
+// TODO: use ostream instead of buffer. use overloaded operator <<?
 bool serializer::serialize_volume(volume& vol, std::vector<uint8_t>& buffer)
 {
     bool success = true;
 
     success = success && serialize_bin(volume::signature, buffer);
+    success = success && serialize_u32(static_cast<uint32_t>(endian::native), buffer);
     success = success && serialize_u64(static_cast<uint64_t>(vol.priority()), buffer);
     success = success && serialize_node(*vol.root(), buffer);
 
     return success;
 }
-
+}
 
 
 
@@ -361,7 +378,7 @@ bool volume::unload(const std::filesystem::path& filepath)
     std::vector<uint8_t> buffer;
     buffer.reserve(256);
 
-    serializer s;
+    detail::serializer s;
     s.serialize_volume(*this, buffer);
 
     if (!ofs.write(reinterpret_cast<char*>(buffer.data()), static_cast<std::streamsize>(buffer.size())))
@@ -397,7 +414,7 @@ std::optional<volume> volume::load(const std::filesystem::path& filepath)
 
     ifs.close();
 
-    serializer s;
+    detail::serializer s;
     return s.deserialize_volume(buffer);
 }
 } // namespace datastore
