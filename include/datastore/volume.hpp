@@ -9,20 +9,23 @@
 
 namespace datastore
 {
-//TODO: move to detail namespace
+namespace detail
+{
+// TODO: add serializer unit tests
 class serializer
 {
-public:
+  public:
     std::optional<node> deserialize_node(volume& vol, node* parent, std::vector<uint8_t>& buffer, size_t& pos);
     bool serialize_node(node& n, std::vector<uint8_t>& buffer);
 
     std::optional<volume> deserialize_volume(std::vector<uint8_t>& buffer);
     bool serialize_volume(volume& vol, std::vector<uint8_t>& buffer);
 };
+} // namespace detail
 
 class volume
 {
-    friend class serializer;
+    friend class detail::serializer;
 
   public:
     // Higher number -> higher priority
@@ -42,7 +45,7 @@ class volume
 
     static const inline std::vector<uint8_t> signature = {'=', 'V', 'O', 'L'};
 
-    constexpr static size_t max_tree_depth = 512;
+    constexpr static size_t max_tree_depth = 255;
 
     volume(priority_t priority);
 

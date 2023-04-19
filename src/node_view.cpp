@@ -152,9 +152,23 @@ node_view* node_view::create_subnode(path_view subnode_path)
     if (!subnode_path.valid() || invalid_)
         return nullptr;
 
+    size_t depth = 0;
+    const node_view* parent = parent_;
+    while (parent)
+    {
+        depth++;
+        parent = parent->parent_;
+    }
+    if (depth > vault::max_tree_depth)
+        return nullptr;
+
+    const std::string subnode_name = std::string(*subnode_path.front());
+
+    if (const auto it = subviews_.find(subnode_name); it == subviews_.end() && subviews_.size() > max_num_subnodes)
+        return nullptr;
+
     // TODO: always takes the node with the highest precedence
     node* n = *nodes_.begin();
-    const std::string subnode_name = std::string(subnode_path.front().value());
     node* subnode = n->create_subnode(std::move(subnode_path));
     if (!subnode)
         return nullptr;
@@ -279,8 +293,9 @@ size_t node_view::delete_value(const std::string& value_name)
 {
     for (const auto node : nodes_)
     {
-        // TODO: stop iterating when one value is deleted
-        return node->delete_value(value_name);
+        const size_t num_deleted = node->delete_value(value_name);
+        if (num_deleted > 0)
+            return num_deleted;
     }
 
     return 0;
@@ -367,9 +382,24 @@ node_view* node_view::load_subnode(path_view subnode_name, node* subnode)
 
     std::string target_subnode_name = std::string(*subnode_name.back());
 
+    //TODO: cleanup
     node_view* target_parent_subnode = this;
 
     if (!target_parent_subnode)
+        return nullptr;
+
+    size_t depth = 0;
+    const node_view* parent = target_parent_subnode->parent_;
+    while (parent)
+    {
+        depth++;
+        parent = parent->parent_;
+    }
+    if (depth > vault::max_tree_depth)
+        return nullptr;
+
+    if (const auto it = target_parent_subnode->subviews_.find(target_subnode_name);
+        it == target_parent_subnode->subviews_.end() && target_parent_subnode->subviews_.size() > max_num_subnodes)
         return nullptr;
 
     auto [it, inserted] = target_parent_subnode->subviews_.emplace(
@@ -377,14 +407,20 @@ node_view* node_view::load_subnode(path_view subnode_name, node* subnode)
 
     node_view& subview = it->second;
 
-    subview.nodes_.emplace(subnode);
-    subnode->register_observer(&subview.observer_);
-
     const auto subnode_names = subnode->get_subnode_names();
     for (const auto& name : subnode_names)
     {
-        subview.load_subnode(name, subnode->open_subnode(name));
+        if (!subview.load_subnode(name, subnode->open_subnode(name)))
+        {
+            // Undo parent creation
+            //TODO: add tests for this (and use cpp coverage to find similar code paths
+            target_parent_subnode->subviews_.erase(target_subnode_name);
+            return nullptr;
+        }
     }
+
+    subview.nodes_.emplace(subnode);
+    subnode->register_observer(&subview.observer_);
 
     return &subview;
 }

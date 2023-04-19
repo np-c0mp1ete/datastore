@@ -103,10 +103,16 @@ node* node::create_subnode(path_view subnode_path)
 
     std::string subnode_name = std::string(*subnode_path.front());
 
+    if (const auto it = subnodes_.find(subnode_name); it == subnodes_.end() && subnodes_.size() > max_num_subnodes)
+        return nullptr;
+
     auto [it, inserted] = subnodes_.emplace(subnode_name, node(subnode_name, volume_, this));
     node* subnode = &it->second;
 
-    subnode->deleted_ = false;
+    if (!inserted)
+    {
+        subnode->deleted_ = false;
+    }
 
     if (subnode_path.composite())
     {

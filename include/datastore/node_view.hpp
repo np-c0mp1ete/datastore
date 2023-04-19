@@ -37,6 +37,9 @@ class node_view
     friend std::ostream& operator<<(std::ostream& lhs, const node_view& rhs);
 
   public:
+    static constexpr size_t max_num_subnodes = 255;
+    static constexpr size_t max_num_values = 255;
+
     [[nodiscard]] node_view(const node_view& other) noexcept;
 
     [[nodiscard]] node_view(node_view&& other) noexcept;
@@ -96,7 +99,7 @@ class node_view
 
     // Sets the value of a name/value pair in the node
     template <typename T, typename = std::enable_if_t<std::is_constructible_v<value_type, T>>>
-    void set_value(const std::string& value_name, T new_value);
+    bool set_value(const std::string& value_name, T&& new_value);
 
     // Retrieves an array of strings that contains all the value names associated with this node
     [[nodiscard]] std::unordered_set<std::string> get_value_names() const;
@@ -124,8 +127,7 @@ template <typename T>
 {
     for (const auto node : nodes_)
     {
-        auto value = node->get_value<T>(value_name);
-        if (value)
+        if (auto value = node->get_value<T>(value_name))
             return value;
     }
 
@@ -133,13 +135,15 @@ template <typename T>
 }
 
 template <typename T, typename>
-void node_view::set_value(const std::string& value_name, T new_value)
+bool node_view::set_value(const std::string& value_name, T&& new_value)
 {
     // TODO: always inserts a value to the node with highest precedence
     for (auto node : nodes_)
     {
-        node->set_value(value_name, new_value);
-        return;
+        if (node->set_value(value_name, new_value))
+            return true;
     }
+
+    return false;
 }
 } // namespace datastore

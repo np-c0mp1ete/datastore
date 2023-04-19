@@ -7,6 +7,8 @@ namespace datastore
 class vault
 {
   public:
+    constexpr static size_t max_tree_depth = 255;
+
     // TODO: implement copy&move constructors and call set_vault()
 
     // Creates a subnode and loads the data from the specified node into that subnode

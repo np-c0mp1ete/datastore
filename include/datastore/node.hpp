@@ -59,8 +59,10 @@ static_assert(std::variant_size_v<value_type> == to_underlying(value_kind::_coun
 
 std::ostream& operator<<(std::ostream& lhs, const value_type& rhs);
 
+
 namespace detail
 {
+
 template <class T, class U>
 struct is_one_of;
 
@@ -69,12 +71,13 @@ struct is_one_of<T, std::variant<Ts...>> : std::bool_constant<(std::is_same_v<T,
 {
 };
 
+
 template <class T>
 using allowed = is_one_of<T, value_type>;
 
+class serializer;
 class node_observer;
 } // namespace detail
-
 namespace literals
 {
 constexpr uint32_t operator""_u32(unsigned long long value)
@@ -90,7 +93,7 @@ constexpr uint64_t operator""_u64(unsigned long long value)
 
 class node
 {
-    friend class serializer;
+    friend class detail::serializer;
     friend class volume;
     friend class detail::node_observer;
     friend class node_view;
@@ -99,6 +102,7 @@ class node
     friend std::ostream& operator<<(std::ostream& lhs, const node_view& rhs);
 
   public:
+    static constexpr size_t max_num_subnodes = 255;
     static constexpr size_t max_num_values = 255;
 
     [[nodiscard]] node(const node& other) noexcept;
@@ -147,9 +151,10 @@ class node
 
     // Sets the value of a name/value pair in the node
     template <typename T, typename = std::enable_if_t<std::is_constructible_v<value_type, T>>>
-    bool set_value(const std::string& value_name, T new_value);
+    bool set_value(const std::string& value_name, T&& new_value);
 
     // Retrieves an array of strings that contains all the value names associated with this node
+    //TODO: use for_each pattern instead
     std::unordered_set<std::string> get_value_names();
 
     std::string_view name();
@@ -194,14 +199,14 @@ template <typename T, typename>
 
 //TODO: cleanup data size conststraints code
 template <typename T, typename>
-bool node::set_value(const std::string& value_name, T new_value)
+bool node::set_value(const std::string& value_name, T&& new_value)
 {
     if (value_name.size() > max_value_name_size_bytes)
     {
         return false;
     }
 
-    value_type value = new_value;
+    value_type value = std::forward<T>(new_value);
     const value_kind kind = static_cast<value_kind>(value.index());
     if (kind == value_kind::str && std::get<std::string>(value).size() > max_str_value_size_bytes)
     {
@@ -213,7 +218,7 @@ bool node::set_value(const std::string& value_name, T new_value)
     }
 
     const auto it = values_.find(value_name);
-    if (it == values_.end() && values_.size() >= max_num_values)
+    if (it == values_.end() && values_.size() > max_num_values)
         return false;
 
     values_[value_name] = std::move(value);
