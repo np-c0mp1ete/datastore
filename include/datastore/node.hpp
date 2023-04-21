@@ -7,7 +7,7 @@
 #include <variant>
 
 #include "datastore/path_view.hpp"
-#include "datastore/detail/threadsafe_lookup_table.hpp"
+#include "datastore/detail/striped_hashmap.hpp"
 
 #include <set>
 #include <unordered_set>
@@ -184,7 +184,7 @@ private:
     volume* volume_;
     node* parent_;
     std::unordered_map<std::string, node> subnodes_;
-    threadsafe_lookup_table<std::string, value_type> values_;
+    striped_hashmap<std::string, value_type> values_;
     std::list<detail::node_observer*> observers_;
     bool deleted_ = false;
 };
@@ -192,12 +192,12 @@ private:
 template <typename T, typename>
 [[nodiscard]] std::optional<T> node::get_value(const std::string& value_name) const
 {
-    const auto it = values_.find(value_name);
-    if (!it)
+    const auto opt = values_.find(value_name);
+    if (!opt)
         return std::nullopt;
 
     // Return by value to avoid clients ending up with dangling pointers
-    auto value = std::get_if<T>(&it.value());
+    const T* value = std::get_if<T>(&opt.value());
     return value ? std::make_optional(*value) : std::nullopt;
 }
 
@@ -221,11 +221,6 @@ bool node::set_value(const std::string& value_name, T&& new_value)
         return false;
     }
 
-    const auto opt = values_.find(value_name);
-    if (!opt && values_.size() > max_num_values)
-        return false;
-
-    values_.emplace(value_name, std::move(value));
-    return true;
+    return values_.insert_with_limit_or_assign(value_name, std::move(value), max_num_values);
 }
 } // namespace datastore

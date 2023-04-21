@@ -3,16 +3,22 @@
 
 #include <iostream>
 
-int main()
+int main(int argc, char* argv[])
 {
     using namespace std::chrono_literals;
+
+    auto test_duration = 5s;
+    if (argc == 2)
+    {
+        test_duration = std::chrono::seconds(std::stoi(argv[1]));
+    }
 
     datastore::volume vol1(datastore::volume::priority_class::medium);
 
     std::atomic_bool exit = false;
 
     auto set_value = [&] {
-        while (!exit)
+        while (!exit.load(std::memory_order_relaxed))
         {
             vol1.root()->set_value("k", "v");
             std::cout << "set\n";
@@ -20,7 +26,7 @@ int main()
     };
 
     auto get_value = [&] {
-        while (!exit)
+        while (!exit.load(std::memory_order_relaxed))
         {
             auto value = vol1.root()->get_value<std::string>("k");
             std::cout << (value ? value.value() + "\n" : "null\n");
@@ -28,7 +34,7 @@ int main()
     };
 
     auto get_value_kind = [&] {
-        while (!exit)
+        while (!exit.load(std::memory_order_relaxed))
         {
             auto kind = vol1.root()->get_value_kind("k");
             std::cout << (kind ? "str\n" : "null\n");
@@ -36,7 +42,7 @@ int main()
     };
 
     auto delete_value = [&] {
-        while (!exit)
+        while (!exit.load(std::memory_order_relaxed))
         {
             vol1.root()->delete_value("k");
             std::cout << "delete\n";
@@ -52,7 +58,7 @@ int main()
         executors[i] = std::thread(actions[i % actions.size()]);
     }
 
-    std::this_thread::sleep_for(5s);
+    std::this_thread::sleep_for(test_duration);
 
     exit = true;
 

@@ -239,7 +239,7 @@ std::optional<node> serializer::deserialize_node(volume& vol, node* parent, std:
         if (!opt)
             return std::nullopt;
         value_type value = opt.value();
-        n.values_.emplace(value_name, std::move(value));
+        n.values_.insert_with_limit_or_assign(value_name, std::move(value), node::max_num_values);
     }
 
     DESERIALIZE_OPT(uint64_t, children_count, deserialize_u64)

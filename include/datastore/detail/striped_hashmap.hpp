@@ -9,14 +9,14 @@
 #include <utility>
 #include <vector>
 
-template <typename Key, typename Value, typename Hash = std::hash<Key>>
-class threadsafe_lookup_table
+template <typename Key, typename Value>
+class striped_hashmap
 {
   private:
     class bucket_type
     {
       private:
-        friend class threadsafe_lookup_table;
+        friend class striped_hashmap;
 
         typedef std::pair<Key, Value> bucket_value;
         typedef std::list<bucket_value> bucket_data;
@@ -34,7 +34,9 @@ class threadsafe_lookup_table
 
         auto find_entry_for(Key const& key) const
         {
-            return std::find_if(data.begin(), data.end(), [&](bucket_value const& item) { return item.first == key; });
+            return std::find_if(data.begin(), data.end(), [&](bucket_value const& item) {
+                return item.first == key;
+            });
         }
 
       public:
@@ -45,97 +47,117 @@ class threadsafe_lookup_table
             return (found_entry == data.end()) ? std::nullopt : std::make_optional<Value>(found_entry->second);
         }
 
-        void add_or_update_mapping(Key const& key, Value const& value)
+        bool insert_with_limit_or_assign(Key const& key, Value const& value, std::atomic_size_t& cur_size, size_t max_size)
         {
             std::unique_lock<std::shared_mutex> lock(mutex);
             auto found_entry = find_entry_for(key);
             if (found_entry == data.end())
             {
+                if (cur_size > max_size)
+                    return false;
+
+                ++cur_size;
                 data.push_back(bucket_value(key, value));
             }
             else
             {
                 found_entry->second = value;
             }
+            return true;
         }
 
-        void remove_mapping(Key const& key)
+        size_t remove_mapping(Key const& key)
         {
             std::unique_lock<std::shared_mutex> lock(mutex);
             auto found_entry = find_entry_for(key);
             if (found_entry != data.end())
             {
                 data.erase(found_entry);
+                return 1;
             }
+            return 0;
         }
     };
-
-    std::vector<std::unique_ptr<bucket_type>> buckets;
-    Hash hasher;
-
-    bucket_type& get_bucket(Key const& key) const
-    {
-        std::size_t const bucket_index = hasher(key) % buckets.size();
-        return *buckets[bucket_index];
-    }
 
   public:
     typedef Key key_type;
     typedef Value mapped_type;
-    typedef Hash hash_type;
 
-    threadsafe_lookup_table(unsigned num_buckets = 19, Hash const& hasher_ = Hash())
-        : buckets(num_buckets), hasher(hasher_)
+    striped_hashmap(unsigned num_buckets = 257)
+        : buckets_(num_buckets)
     {
         for (unsigned i = 0; i < num_buckets; ++i)
         {
-            buckets[i].reset(new bucket_type);
+            buckets_[i].reset(new bucket_type);
         }
     }
 
-    threadsafe_lookup_table(threadsafe_lookup_table const& other) = delete;
-    threadsafe_lookup_table(threadsafe_lookup_table&& other) = default;
+    striped_hashmap(striped_hashmap const& other) = delete;
 
-    threadsafe_lookup_table& operator=(threadsafe_lookup_table const& other) = delete;
-    threadsafe_lookup_table& operator=(threadsafe_lookup_table&& other) = default;
+    striped_hashmap(striped_hashmap&& other) noexcept
+        : buckets_(std::move(other.buckets_)),
+          num_elements_(other.num_elements_.load())
+    {
+    }
+
+    striped_hashmap& operator=(striped_hashmap const& other) = delete;
+
+    striped_hashmap& operator=(striped_hashmap&& other) noexcept
+    {
+        buckets_ = std::move(other.buckets_);
+        num_elements_ = other.num_elements_.load();
+
+        return *this;
+    }
 
     [[nodiscard]] std::optional<Value> find(Key const& key) const
     {
-        return get_bucket(key).value_for(key);
+        return bucket(key).value_for(key);
     }
 
-    void emplace(Key const& key, Value const& value)
+    bool insert_with_limit_or_assign(Key const& key, Value const& value, size_t max_num_elements)
     {
-        get_bucket(key).add_or_update_mapping(key, value);
+        return bucket(key).insert_with_limit_or_assign(key, value, num_elements_, max_num_elements);
     }
 
     size_t erase(Key const& key)
     {
-        get_bucket(key).remove_mapping(key);
-        return 1;
+        const size_t num_deleted = bucket(key).remove_mapping(key);
+        if (num_deleted > 0)
+            --num_elements_;
+        return num_deleted;
     }
 
-    // TODO: have an atomic int?
     size_t size() const
     {
-        return 0;
+        return num_elements_;
     }
 
     [[nodiscard]] std::map<Key, Value> get_map() const
     {
         std::vector<std::unique_lock<std::shared_mutex>> locks;
-        for (unsigned i = 0; i < buckets.size(); ++i)
+        for (unsigned i = 0; i < buckets_.size(); ++i)
         {
-            locks.push_back(std::unique_lock<std::shared_mutex>(buckets[i]->mutex));
+            locks.push_back(std::unique_lock<std::shared_mutex>(buckets_[i]->mutex));
         }
         std::map<Key, Value> res;
-        for (unsigned i = 0; i < buckets.size(); ++i)
+        for (unsigned i = 0; i < buckets_.size(); ++i)
         {
-            for (auto it = buckets[i]->data.begin(); it != buckets[i]->data.end(); ++it)
+            for (auto it = buckets_[i]->data.begin(); it != buckets_[i]->data.end(); ++it)
             {
                 res.insert(*it);
             }
         }
         return res;
     }
+
+  private:
+    bucket_type& bucket(Key const& key) const
+    {
+        std::size_t const bucket_index = std::hash<Key>{}(key) % buckets_.size();
+        return *buckets_[bucket_index];
+    }
+
+    std::vector<std::unique_ptr<bucket_type>> buckets_;
+    std::atomic_size_t num_elements_ = 0;
 };
