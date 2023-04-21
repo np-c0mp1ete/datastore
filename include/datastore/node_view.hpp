@@ -102,7 +102,16 @@ class node_view
     bool set_value(const std::string& value_name, T&& new_value);
 
     // Retrieves an array of strings that contains all the value names associated with this node
-    [[nodiscard]] std::unordered_set<std::string> get_value_names() const;
+    [[nodiscard]] auto get_values() const
+    {
+        std::map<std::string, value_type> values;
+        for (const auto node : nodes_)
+        {
+            auto&& value_names = node->get_values();
+            values.insert(value_names.begin(), value_names.end());
+        }
+        return values;
+    }
 
     std::string_view name();
 

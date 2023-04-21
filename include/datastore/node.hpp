@@ -7,6 +7,7 @@
 #include <variant>
 
 #include "datastore/path_view.hpp"
+#include "datastore/detail/threadsafe_lookup_table.hpp"
 
 #include <set>
 #include <unordered_set>
@@ -105,11 +106,11 @@ class node
     static constexpr size_t max_num_subnodes = 255;
     static constexpr size_t max_num_values = 255;
 
-    [[nodiscard]] node(const node& other) noexcept;
+    // [[nodiscard]] node(const node& other) noexcept;
 
     [[nodiscard]] node(node&& other) noexcept;
 
-    node& operator=(const node& rhs) noexcept;
+    // node& operator=(const node& rhs) noexcept;
 
     node& operator=(node&& rhs) noexcept;
 
@@ -155,7 +156,10 @@ class node
 
     // Retrieves an array of strings that contains all the value names associated with this node
     //TODO: use for_each pattern instead
-    std::unordered_set<std::string> get_value_names();
+    auto get_values() const
+    {
+        return values_.get_map();
+    }
 
     std::string_view name();
 
@@ -180,7 +184,7 @@ private:
     volume* volume_;
     node* parent_;
     std::unordered_map<std::string, node> subnodes_;
-    std::unordered_map<std::string, value_type> values_;
+    threadsafe_lookup_table<std::string, value_type> values_;
     std::list<detail::node_observer*> observers_;
     bool deleted_ = false;
 };
@@ -189,11 +193,11 @@ template <typename T, typename>
 [[nodiscard]] std::optional<T> node::get_value(const std::string& value_name) const
 {
     const auto it = values_.find(value_name);
-    if (it == values_.end())
+    if (!it)
         return std::nullopt;
 
     // Return by value to avoid clients ending up with dangling pointers
-    auto value = std::get_if<T>(&it->second);
+    auto value = std::get_if<T>(&it.value());
     return value ? std::make_optional(*value) : std::nullopt;
 }
 
@@ -217,11 +221,11 @@ bool node::set_value(const std::string& value_name, T&& new_value)
         return false;
     }
 
-    const auto it = values_.find(value_name);
-    if (it == values_.end() && values_.size() > max_num_values)
+    const auto opt = values_.find(value_name);
+    if (!opt && values_.size() > max_num_values)
         return false;
 
-    values_[value_name] = std::move(value);
+    values_.emplace(value_name, std::move(value));
     return true;
 }
 } // namespace datastore

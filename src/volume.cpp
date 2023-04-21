@@ -266,9 +266,11 @@ bool serializer::serialize_node(node& n, std::vector<uint8_t>& buffer)
     bool success = true;
 
     success = success && serialize_str(n.name_, buffer);
-    success = success && serialize_u64(static_cast<uint64_t>(n.values_.size()), buffer);
 
-    for (auto& [value_name, value] : n.values_)
+    auto values = n.values_.get_map();
+    success = success && serialize_u64(static_cast<uint64_t>(values.size()), buffer);
+
+    for (auto& [value_name, value] : values)
     {
         success = success && serialize_str(value_name, buffer);
         success = success && serialize_u64(static_cast<uint64_t>(value.index()), buffer);
@@ -335,33 +337,33 @@ volume::volume(priority_t priority) : priority_(priority)
 {
 }
 
-[[nodiscard]] volume::volume(const volume& other) noexcept : priority_(other.priority_), root_(other.root_)
-{
-    root_.set_volume(this);
-}
+// [[nodiscard]] volume::volume(const volume& other) noexcept : priority_(other.priority_), root_(other.root_)
+// {
+//     root_.set_volume(this);
+// }
 
 [[nodiscard]] volume::volume(volume&& other) noexcept : priority_(other.priority_), root_(std::move(other.root_))
 {
     root_.set_volume(this);
 }
 
-volume& volume::operator=(const volume& rhs) noexcept
-{
-    if (this == &rhs)
-        return *this;
-
-    priority_ = rhs.priority_;
-    root_ = rhs.root_;
-
-    root_.set_volume(this);
-
-    return *this;
-}
+// volume& volume::operator=(const volume& rhs) noexcept
+// {
+//     if (this == &rhs)
+//         return *this;
+//
+//     priority_ = rhs.priority_;
+//     root_ = rhs.root_;
+//
+//     root_.set_volume(this);
+//
+//     return *this;
+// }
 
 volume& volume::operator=(volume&& rhs) noexcept
 {
     priority_ = rhs.priority_;
-    root_ = rhs.root_;
+    root_ = std::move(rhs.root_);
 
     root_.set_volume(this);
 

@@ -49,11 +49,11 @@ class volume
 
     volume(priority_t priority);
 
-    [[nodiscard]] volume(const volume& other) noexcept;
+    // [[nodiscard]] volume(const volume& other) noexcept;
 
     [[nodiscard]] volume(volume&& other) noexcept;
 
-    volume& operator=(const volume& rhs) noexcept;
+    // volume& operator=(const volume& rhs) noexcept;
 
     volume& operator=(volume&& rhs) noexcept;
 

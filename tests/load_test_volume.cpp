@@ -38,13 +38,13 @@ void check_tree(datastore::node* parent, size_t cur_depth = 0)
         datastore::node* subnode = parent->open_subnode(subnode_name);
         CHECK(subnode != nullptr);
 
-        auto value_names = subnode->get_value_names();
-        CHECK(value_names.size() == datastore::node::max_num_values);
+        auto values = subnode->get_values();
+        CHECK(values.size() == datastore::node::max_num_values);
 
-        for (auto& value_name : value_names)
+        for (auto& [name, value] : values)
         {
-            CHECK(subnode->get_value_kind(value_name) == datastore::value_kind::str);
-            CHECK(subnode->get_value<std::string>(value_name) == max_str);
+            CHECK(subnode->get_value_kind(name) == datastore::value_kind::str);
+            CHECK(subnode->get_value<std::string>(name) == max_str);
         }
 
         check_tree(subnode, cur_depth);

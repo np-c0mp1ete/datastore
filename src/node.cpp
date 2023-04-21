@@ -31,15 +31,15 @@ node::node(std::string name, volume* volume, node* parent) : name_(std::move(nam
 {
 }
 
-[[nodiscard]] node::node(const node& other) noexcept
-    : name_(other.name_), volume_(other.volume_), parent_(other.parent_), subnodes_(other.subnodes_),
-      values_(other.values_)
-{
-    for (auto& [name, subnode] : subnodes_)
-    {
-        subnode.parent_ = this;
-    }
-}
+// [[nodiscard]] node::node(const node& other) noexcept
+//     : name_(other.name_), volume_(other.volume_), parent_(other.parent_), subnodes_(other.subnodes_),
+//       values_(other.values_)
+// {
+//     for (auto& [name, subnode] : subnodes_)
+//     {
+//         subnode.parent_ = this;
+//     }
+// }
 
 [[nodiscard]] node::node(node&& other) noexcept
     : name_(std::move(other.name_)), volume_(other.volume_), parent_(other.parent_),
@@ -51,24 +51,24 @@ node::node(std::string name, volume* volume, node* parent) : name_(std::move(nam
     }
 }
 
-node& node::operator=(const node& rhs) noexcept
-{
-    if (this == &rhs)
-        return *this;
-
-    name_ = rhs.name_;
-    volume_ = rhs.volume_;
-    parent_ = rhs.parent_;
-    subnodes_ = rhs.subnodes_;
-    values_ = rhs.values_;
-
-    for (auto& [name, subnode] : subnodes_)
-    {
-        subnode.parent_ = this;
-    }
-
-    return *this;
-}
+// node& node::operator=(const node& rhs) noexcept
+// {
+//     if (this == &rhs)
+//         return *this;
+//
+//     name_ = rhs.name_;
+//     volume_ = rhs.volume_;
+//     parent_ = rhs.parent_;
+//     subnodes_ = rhs.subnodes_;
+//     values_ = rhs.values_;
+//
+//     for (auto& [name, subnode] : subnodes_)
+//     {
+//         subnode.parent_ = this;
+//     }
+//
+//     return *this;
+// }
 
 node& node::operator=(node&& rhs) noexcept
 {
@@ -223,23 +223,12 @@ size_t node::delete_value(const std::string& value_name)
 
 std::optional<value_kind> node::get_value_kind(const std::string& value_name) const
 {
-    const auto it = values_.find(value_name);
-    if (it == values_.end())
+    const auto opt_value = values_.find(value_name);
+
+    if (!opt_value)
         return std::nullopt;
 
-    return static_cast<value_kind>(it->second.index());
-}
-
-std::unordered_set<std::string> node::get_value_names()
-{
-    // Copy strings to avoid scenarios when a value gets deleted
-    // and the caller is left with a dangling pointer
-    std::unordered_set<std::string> names;
-    for (const auto& [name, value] : values_)
-    {
-        names.emplace(name);
-    }
-    return names;
+    return static_cast<value_kind>(opt_value->index());
 }
 
 std::string_view node::name()
@@ -292,7 +281,8 @@ std::ostream& operator<<(std::ostream& lhs, const node& rhs)
 {
     lhs << rhs.path() << std::endl;
 
-    for (const auto& [name, value] : rhs.values_)
+    auto values = rhs.values_.get_map();
+    for (const auto& [name, value] : values)
     {
         lhs << name << " = " << value << std::endl;
     }

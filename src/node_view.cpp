@@ -312,18 +312,18 @@ std::optional<value_kind> node_view::get_value_kind(const std::string& value_nam
     return std::nullopt;
 }
 
-std::unordered_set<std::string> node_view::get_value_names() const
-{
-    // Copy strings to avoid scenarios when a subnode gets deleted
-    // and the caller is left with a dangling pointer
-    std::unordered_set<std::string> names;
-    for (const auto node : nodes_)
-    {
-        auto&& value_names = node->get_value_names();
-        names.insert(value_names.begin(), value_names.end());
-    }
-    return names;
-}
+// std::unordered_set<std::string> node_view::get_value_names() const
+// {
+//     // Copy strings to avoid scenarios when a subnode gets deleted
+//     // and the caller is left with a dangling pointer
+//     std::unordered_set<std::string> names;
+//     for (const auto node : nodes_)
+//     {
+//         auto&& value_names = node->get_value_names();
+//         names.insert(value_names.begin(), value_names.end());
+//     }
+//     return names;
+// }
 
 std::string_view node_view::name()
 {
@@ -350,7 +350,8 @@ std::ostream& operator<<(std::ostream& lhs, const node_view& rhs)
 
     for (const auto node : rhs.nodes_)
     {
-        for (const auto& [name, value] : node->values_)
+        auto values = node->values_.get_map();
+        for (const auto& [name, value] : values)
         {
             lhs << "--> " << static_cast<size_t>(node->priority()) << ": " << node->path() << "." << name << " = "
                 << value << std::endl;
