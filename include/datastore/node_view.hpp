@@ -50,10 +50,6 @@ class node_view
 
     node_view& operator=(node_view&& rhs) noexcept;
 
-    // Creates a new subnode as a symbolic link to the target node
-    // Target path must be an absolute path from the vault root
-    // node_view* create_symlink_subnode(path_view subnode_name, const path_view& target_path);
-
     // Creates a new subnode or opens an existing subnode
     // The subnode can be several levels deep in the volume tree
     node_view* create_subnode(path_view subnode_path);
@@ -69,19 +65,9 @@ class node_view
     // This function removes a subnode from the vault but does not modify the volume containing the information.
     size_t unload_subnode(path_view subnode_path);
 
-    // Deletes the specified subnode
-    // The subnode can be several levels deep in the volume tree
-    // The subnode to be deleted must not have subnodes
-    // TODO: remove
-    // size_t delete_subnode(path_view subnode_path);
-
     // Deletes a subnode and any child subnodes recursively
     // The subnode can be several levels deep in the volume tree
     size_t delete_subnode_tree(path_view subnode_path);
-
-    // Changes the name of the specified subnode
-    // TODO: remove
-    // void rename_subnode(const std::string& subnode_name, const std::string& new_subnode_name);
 
     // Retrieves an array of strings that contains all the subnode names
     [[nodiscard]] std::unordered_set<std::string> get_subnode_names() const;

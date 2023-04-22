@@ -31,16 +31,6 @@ node::node(std::string name, volume* volume, node* parent) : name_(std::move(nam
 {
 }
 
-// [[nodiscard]] node::node(const node& other) noexcept
-//     : name_(other.name_), volume_(other.volume_), parent_(other.parent_), subnodes_(other.subnodes_),
-//       values_(other.values_)
-// {
-//     for (auto& [name, subnode] : subnodes_)
-//     {
-//         subnode.parent_ = this;
-//     }
-// }
-
 [[nodiscard]] node::node(node&& other) noexcept
     : name_(std::move(other.name_)), volume_(other.volume_), parent_(other.parent_),
       subnodes_(std::move(other.subnodes_)), values_(std::move(other.values_))
@@ -50,25 +40,6 @@ node::node(std::string name, volume* volume, node* parent) : name_(std::move(nam
         subnode.parent_ = this;
     }
 }
-
-// node& node::operator=(const node& rhs) noexcept
-// {
-//     if (this == &rhs)
-//         return *this;
-//
-//     name_ = rhs.name_;
-//     volume_ = rhs.volume_;
-//     parent_ = rhs.parent_;
-//     subnodes_ = rhs.subnodes_;
-//     values_ = rhs.values_;
-//
-//     for (auto& [name, subnode] : subnodes_)
-//     {
-//         subnode.parent_ = this;
-//     }
-//
-//     return *this;
-// }
 
 node& node::operator=(node&& rhs) noexcept
 {
@@ -151,19 +122,6 @@ node* node::open_subnode(path_view subnode_path)
     return subnode;
 }
 
-// size_t node::delete_subnode(path_view subnode_path)
-// {
-//     if (!subnode_path.valid())
-//         return 0;
-//
-//     const std::string target_name = std::string(*subnode_path.back());
-//     const node* subnode = open_subnode(std::move(subnode_path));
-//     if (!subnode || !subnode->subnodes_.empty())
-//         return 0;
-//
-//     return subnodes_.erase(target_name);
-// }
-
 size_t node::delete_subnode_tree(path_view subnode_path)
 {
     if (!subnode_path.valid())
@@ -189,20 +147,6 @@ size_t node::delete_subnode_tree(path_view subnode_path)
 
     return num_deleted;
 }
-
-// void node::rename_subnode(const std::string& subnode_name, const std::string& new_subnode_name)
-// {
-//     if (subnodes_.find(new_subnode_name) != subnodes_.end())
-//         return nullptr;
-//
-//     const auto it = subnodes_.find(subnode_name);
-//     if (it == subnodes_.end())
-//         return nullptr;
-//     node* subnode = &it->second;
-//     subnode->set_name(new_subnode_name);
-//     subnodes_.emplace(new_subnode_name, std::move(*subnode));
-//     subnodes_.erase(subnode_name);
-// }
 
 std::unordered_set<std::string> node::get_subnode_names()
 {

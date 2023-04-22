@@ -106,11 +106,7 @@ class node
     static constexpr size_t max_num_subnodes = 255;
     static constexpr size_t max_num_values = 255;
 
-    // [[nodiscard]] node(const node& other) noexcept;
-
     [[nodiscard]] node(node&& other) noexcept;
-
-    // node& operator=(const node& rhs) noexcept;
 
     node& operator=(node&& rhs) noexcept;
 
@@ -122,19 +118,9 @@ class node
     // The subnode can be several levels deep in the volume tree
     node* open_subnode(path_view subnode_path);
 
-    // Deletes the specified subnode
-    // The subnode can be several levels deep in the volume tree
-    // The subnode to be deleted must not have subnodes
-    // TODO: remove
-    // size_t delete_subnode(path_view subnode_path);
-
     // Deletes a subnode and any child subnodes recursively
     // The subnode can be several levels deep in the volume tree
     size_t delete_subnode_tree(path_view subnode_path);
-
-    // Changes the name of the specified subnode
-    // TODO: remove
-    // void rename_subnode(const std::string& subnode_name, const std::string& new_subnode_name);
 
     // Retrieves an array of strings that contains all the subnode names
     std::unordered_set<std::string> get_subnode_names();
@@ -147,6 +133,7 @@ class node
     template <typename T, typename = std::enable_if_t<detail::allowed<T>::value>>
     [[nodiscard]] std::optional<T> get_value(const std::string& value_name) const;
 
+    //TODO: move to a wrapper class for std::variant
     // Retrieves the data type of the value associated with the specified name
     [[nodiscard]] std::optional<value_kind> get_value_kind(const std::string& value_name) const;
 
@@ -196,7 +183,6 @@ template <typename T, typename>
     if (!opt)
         return std::nullopt;
 
-    // Return by value to avoid clients ending up with dangling pointers
     const T* value = std::get_if<T>(&opt.value());
     return value ? std::make_optional(*value) : std::nullopt;
 }

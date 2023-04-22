@@ -129,24 +129,6 @@ node_view& node_view::operator=(node_view&& rhs) noexcept
     return *this;
 }
 
-// node_view* node_view::create_symlink_subnode(path_view subnode_name, const path_view& target_path)
-// {
-//     if (!subnode_name.valid() || !target_path.valid())
-//         return nullptr;
-//
-//     node_view* subview = create_subnode(std::move(subnode_name));
-//     if (!subview)
-//         return nullptr;
-//
-//     subview->set_value("__link", ref{target_path.str()});
-//
-//     //node_view* target = vault_->root()->open_subnode(target_path);
-//
-//     //subview->nodes_.insert(target->nodes_.begin(), target->nodes_.end());
-//
-//     return subview;
-// }
-
 node_view* node_view::create_subnode(path_view subnode_path)
 {
     if (!subnode_path.valid() || invalid_)
@@ -214,28 +196,6 @@ node_view* node_view::open_subnode(path_view subnode_path)
     return subnode;
 }
 
-// size_t node_view::delete_subnode(path_view subnode_path)
-// {
-//     if (!subnode_path.valid())
-//         return 0;
-//
-//     size_t num_deleted = 0;
-//     for (const auto node : nodes_)
-//     {
-//         num_deleted += node->delete_subnode(subnode_path);
-//         subviews_.erase(std::string(subnode_path.front().value()));
-//     }
-//
-//     const ref* link = get_value<ref>("__link");
-//     if (link)
-//     {
-//         node_view* target = vault_->root()->open_subnode(link->path);
-//         num_deleted += target->delete_subnode(subnode_path);
-//     }
-//
-//     return num_deleted;
-// }
-
 size_t node_view::delete_subnode_tree(path_view subnode_path)
 {
     if (!subnode_path.valid())
@@ -264,13 +224,6 @@ size_t node_view::delete_subnode_tree(path_view subnode_path)
     }
 
     target_parent_subnode->subviews_.erase(target_subnode_name);
-
-    // const ref* link = get_value<ref>("__link");
-    // if (link)
-    // {
-    //     node_view* target = vault_->root()->open_subnode(link->path);
-    //     num_deleted += target->delete_subnode_tree(subnode_path);
-    // }
 
     return num_deleted;
 }
@@ -311,19 +264,6 @@ std::optional<value_kind> node_view::get_value_kind(const std::string& value_nam
 
     return std::nullopt;
 }
-
-// std::unordered_set<std::string> node_view::get_value_names() const
-// {
-//     // Copy strings to avoid scenarios when a subnode gets deleted
-//     // and the caller is left with a dangling pointer
-//     std::unordered_set<std::string> names;
-//     for (const auto node : nodes_)
-//     {
-//         auto&& value_names = node->get_value_names();
-//         names.insert(value_names.begin(), value_names.end());
-//     }
-//     return names;
-// }
 
 std::string_view node_view::name()
 {

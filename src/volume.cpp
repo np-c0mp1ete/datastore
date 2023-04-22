@@ -337,28 +337,10 @@ volume::volume(priority_t priority) : priority_(priority)
 {
 }
 
-// [[nodiscard]] volume::volume(const volume& other) noexcept : priority_(other.priority_), root_(other.root_)
-// {
-//     root_.set_volume(this);
-// }
-
 [[nodiscard]] volume::volume(volume&& other) noexcept : priority_(other.priority_), root_(std::move(other.root_))
 {
     root_.set_volume(this);
 }
-
-// volume& volume::operator=(const volume& rhs) noexcept
-// {
-//     if (this == &rhs)
-//         return *this;
-//
-//     priority_ = rhs.priority_;
-//     root_ = rhs.root_;
-//
-//     root_.set_volume(this);
-//
-//     return *this;
-// }
 
 volume& volume::operator=(volume&& rhs) noexcept
 {
