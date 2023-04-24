@@ -42,21 +42,41 @@ class striped_hashmap
       public:
         std::optional<Value> value_for(Key const& key) const
         {
-            std::shared_lock<std::shared_mutex> lock(mutex);
+            std::shared_lock lock(mutex);
             auto found_entry = find_entry_for(key);
             return (found_entry == data.end()) ? std::nullopt : std::make_optional<Value>(found_entry->second);
         }
 
+        template <typename K, typename V>
+        std::pair<Value, bool> insert_with_limit_if_not_exist(K&& key, V&& value, std::atomic_size_t& cur_size,
+                                         size_t max_size)
+        {
+            std::unique_lock lock(mutex);
+            auto found_entry = find_entry_for(Key(key));
+            if (found_entry == data.end())
+            {
+                size_t expected = cur_size.load(std::memory_order_relaxed);
+                if (expected >= max_size ||
+                    !cur_size.compare_exchange_weak(expected, expected + 1, std::memory_order_relaxed))
+                    return std::make_pair<Value, bool>(Value(), false);
+
+                data.push_back(bucket_value(key, std::forward<V>(value)));
+            }
+
+            auto entry = find_entry_for(key);
+            return std::pair<Value, bool>(entry->second, true);
+        }
+
         bool insert_with_limit_or_assign(Key const& key, Value const& value, std::atomic_size_t& cur_size, size_t max_size)
         {
-            std::unique_lock<std::shared_mutex> lock(mutex);
+            std::unique_lock lock(mutex);
             auto found_entry = find_entry_for(key);
             if (found_entry == data.end())
             {
-                if (cur_size > max_size)
+                size_t expected = cur_size.load(std::memory_order_relaxed);
+                if (expected >= max_size || !cur_size.compare_exchange_weak(expected, expected + 1, std::memory_order_relaxed))
                     return false;
 
-                ++cur_size;
                 data.push_back(bucket_value(key, value));
             }
             else
@@ -68,7 +88,7 @@ class striped_hashmap
 
         size_t remove_mapping(Key const& key)
         {
-            std::unique_lock<std::shared_mutex> lock(mutex);
+            std::unique_lock lock(mutex);
             auto found_entry = find_entry_for(key);
             if (found_entry != data.end())
             {
@@ -120,6 +140,12 @@ class striped_hashmap
         return bucket(key).insert_with_limit_or_assign(key, value, num_elements_, max_num_elements);
     }
 
+    template <typename K, typename V>
+    std::pair<Value, bool> insert_with_limit_if_not_exist(K&& key, V&& value, size_t max_num_elements)
+    {
+        return bucket(key).insert_with_limit_if_not_exist(std::forward<K>(key), std::forward<V>(value), num_elements_, max_num_elements);
+    }
+
     size_t erase(Key const& key)
     {
         const size_t num_deleted = bucket(key).remove_mapping(key);
@@ -149,6 +175,20 @@ class striped_hashmap
             }
         }
         return res;
+    }
+
+    template <typename Function>
+    void for_each(Function f) const
+    {
+        for (unsigned i = 0; i < buckets_.size(); ++i)
+        {
+            std::shared_lock<std::shared_mutex> lock(buckets_[i]->mutex);
+
+            for (auto it = buckets_[i]->data.begin(); it != buckets_[i]->data.end(); ++it)
+            {
+                f(*it);
+            }
+        }
     }
 
   private:

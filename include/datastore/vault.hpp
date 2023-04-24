@@ -4,20 +4,17 @@
 
 namespace datastore
 {
-class vault
+class vault final
 {
   public:
     constexpr static size_t max_tree_depth = 255;
 
-    // TODO: implement copy&move constructors and call set_vault()
-
-    node_view* root()
+    std::shared_ptr<node_view> root()
     {
-        return &root_;
+        return root_;
     }
 
   private:
-    node_view root_ = node_view("root", this, nullptr);
-    std::unordered_map<std::string, volume> volumes_;
+    std::shared_ptr<node_view> root_ = std::shared_ptr<node_view>(new node_view("root", 0));
 };
 } // namespace datastore

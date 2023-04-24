@@ -111,7 +111,7 @@ std::optional<value_type> deserialize_str(std::vector<uint8_t>& buffer, size_t& 
     const std::optional<value_type> opt = deserialize_u64(buffer, pos);
     if (!opt)
         return std::nullopt;
-    const uint64_t len = std::get<uint64_t>(opt.value());
+    const auto len = static_cast<size_t>(std::get<uint64_t>(opt.value()));
 
     if (pos >= buffer.size() || buffer.size() - pos < len)
         return std::nullopt;
@@ -145,7 +145,7 @@ std::optional<value_type> deserialize_bin(std::vector<uint8_t>& buffer, size_t& 
     const std::optional<value_type> opt = deserialize_u64(buffer, pos);
     if (!opt)
         return std::nullopt;
-    const uint64_t len = std::get<uint64_t>(opt.value());
+    const auto len = static_cast<size_t>(std::get<uint64_t>(opt.value()));
 
     if (pos >= buffer.size() || buffer.size() - pos < len)
         return std::nullopt;
@@ -221,13 +221,13 @@ namespace detail
         return std::nullopt;                                                                                           \
     auto var = std::get<type>(opt.value());
 
-std::optional<node> serializer::deserialize_node(volume& vol, node* parent, std::vector<uint8_t>& buffer, size_t& pos)
+std::optional<node> serializer::deserialize_node(volume::priority_t volume_priority, const std::string& path, size_t cur_depth, std::vector<uint8_t>& buffer, size_t& pos)
 {
     std::optional<value_type> opt;
 
     DESERIALIZE_OPT(std::string, name, deserialize_str)
 
-    node n(name, &vol, parent);
+    node n(name, path + path_view::path_separator + name, volume_priority, cur_depth);
 
     DESERIALIZE_OPT(uint64_t, values_count, deserialize_u64)
     for (size_t i = 0; i < values_count; ++i)
@@ -245,14 +245,15 @@ std::optional<node> serializer::deserialize_node(volume& vol, node* parent, std:
     DESERIALIZE_OPT(uint64_t, children_count, deserialize_u64)
     for (size_t i = 0; i < children_count; ++i)
     {
-        std::optional<node> child = deserialize_node(vol, &n, buffer, pos);
+        std::optional<node> child = deserialize_node(volume_priority, n.path(), cur_depth + 1, buffer, pos);
         if (!child)
             return std::nullopt;
 
         // child->parent_ = &n;
-        auto [it, inserted] = n.subnodes_.emplace(child->name(), std::move(child.value()));
+        auto [subnode, success] = n.subnodes_.insert_with_limit_if_not_exist(
+            std::string(child->name()), std::make_shared<node>(std::move(child.value())), node::max_num_subnodes);
 
-        if (!inserted)
+        if (!success)
             return std::nullopt;
 
         // it->second.parent_ = &n;
@@ -277,13 +278,17 @@ bool serializer::serialize_node(node& n, std::vector<uint8_t>& buffer)
         success = success && std::get<2>(serializers[value.index()])(value, buffer);
     }
 
-    success = success && serialize_u64(static_cast<uint64_t>(n.subnodes_.size()), buffer);
+    size_t subnodes_size_pos = buffer.size();
+    success = success && serialize_u64(static_cast<uint64_t>(0), buffer);
 
     // TODO: don't serialize deleted nodes
-    for (auto& [subnode_name, subnode] : n.subnodes_)
-    {
-        success = success && serialize_node(subnode, buffer);
-    }
+    uint64_t num_subnodes = 0;
+    n.for_each_subnode([&](const std::pair<std::string, std::shared_ptr<node>>& kv_pair) {
+        success = success && serialize_node(*kv_pair.second, buffer);
+        num_subnodes++;
+    });
+
+    std::copy_n(reinterpret_cast<uint8_t*>(&num_subnodes), sizeof(uint64_t), buffer.data() + subnodes_size_pos);
 
     return success;
 }
@@ -301,14 +306,14 @@ std::optional<volume> serializer::deserialize_volume(std::vector<uint8_t>& buffe
     if (static_cast<endian>(endianness) != endian::native)
         return std::nullopt;
 
-    DESERIALIZE_OPT(uint64_t, priority, deserialize_u64)
+    DESERIALIZE_OPT(uint32_t, priority, deserialize_u32)
 
     volume vol(static_cast<volume::priority_t>(priority));
 
-    std::optional<node> root_opt = deserialize_node(vol, nullptr, buffer, pos);
+    std::optional<node> root_opt = deserialize_node(priority, vol.root()->path(), 0, buffer, pos);
     if (!root_opt)
         return std::nullopt;
-    vol.root_ = std::move(root_opt.value());
+    vol.root_ = std::make_shared<node>(std::move(root_opt.value()));
 
     if (pos != buffer.size())
         return std::nullopt;
@@ -323,7 +328,7 @@ bool serializer::serialize_volume(volume& vol, std::vector<uint8_t>& buffer)
 
     success = success && serialize_bin(volume::signature, buffer);
     success = success && serialize_u32(static_cast<uint32_t>(endian::native), buffer);
-    success = success && serialize_u64(static_cast<uint64_t>(vol.priority()), buffer);
+    success = success && serialize_u32(static_cast<uint32_t>(vol.priority()), buffer);
     success = success && serialize_node(*vol.root(), buffer);
 
     return success;
@@ -333,24 +338,24 @@ bool serializer::serialize_volume(volume& vol, std::vector<uint8_t>& buffer)
 
 
 
-volume::volume(priority_t priority) : priority_(priority)
+volume::volume(priority_t priority) : priority_(priority), root_(new node("root", "root", priority, 0))
 {
 }
 
-[[nodiscard]] volume::volume(volume&& other) noexcept : priority_(other.priority_), root_(std::move(other.root_))
-{
-    root_.set_volume(this);
-}
+// [[nodiscard]] volume::volume(volume&& other) noexcept : priority_(other.priority_), root_(std::move(other.root_))
+// {
+//     // root_.set_volume(this);
+// }
 
-volume& volume::operator=(volume&& rhs) noexcept
-{
-    priority_ = rhs.priority_;
-    root_ = std::move(rhs.root_);
-
-    root_.set_volume(this);
-
-    return *this;
-}
+// volume& volume::operator=(volume&& rhs) noexcept
+// {
+//     priority_ = rhs.priority_;
+//     root_ = std::move(rhs.root_);
+//
+//     // root_.set_volume(this);
+//
+//     return *this;
+// }
 
 bool volume::unload(const std::filesystem::path& filepath)
 {

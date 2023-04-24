@@ -75,7 +75,7 @@ TEST_CASE("Vault supports basic operations at its elements size limits")
     datastore::volume vol1(datastore::volume::priority_class::medium);
 
     datastore::vault vault;
-    CHECK(vault.root()->load_subnode("vol", vol1.root()));
+    CHECK(vault.root()->load_subnode_tree("vol", vol1.root()));
 
     datastore::node_view* vol_root = vault.root()->open_subnode("vol");
     CHECK(vol_root != nullptr);

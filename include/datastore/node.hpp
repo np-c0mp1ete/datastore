@@ -8,13 +8,19 @@
 
 #include "datastore/path_view.hpp"
 #include "datastore/detail/striped_hashmap.hpp"
+#include "datastore/detail/sorted_list.hpp"
 
-#include <set>
-#include <unordered_set>
+
+#if defined(DATASTORE_DEBUG) && !defined(NDEBUG)
+#include <cassert>
+#define DATASTORE_ASSERT(expr) assert(expr)
+#else
+#define DATASTORE_ASSERT(expr) static_assert(true)
+#endif
 
 namespace datastore
 {
-class node_view;
+class node;
 class volume;
 
 enum class value_kind : uint8_t
@@ -77,8 +83,17 @@ template <class T>
 using allowed = is_one_of<T, value_type>;
 
 class serializer;
-class node_observer;
+
+class node_observer
+{
+  public:
+    virtual ~node_observer() = default;
+
+    virtual void on_create_subnode(const std::shared_ptr<node>& subnode) = 0;
+    virtual void on_delete_subnode(const std::shared_ptr<node>& subnode) = 0;
+};
 } // namespace detail
+
 namespace literals
 {
 constexpr uint32_t operator""_u32(unsigned long long value)
@@ -92,7 +107,7 @@ constexpr uint64_t operator""_u64(unsigned long long value)
 }
 } // namespace literals
 
-class node
+class node final
 {
     friend class detail::serializer;
     friend class volume;
@@ -106,24 +121,32 @@ class node
     static constexpr size_t max_num_subnodes = 255;
     static constexpr size_t max_num_values = 255;
 
+    [[nodiscard]] node(const node& other) = delete;
     [[nodiscard]] node(node&& other) noexcept;
 
+    node& operator=(const node& rhs) = delete;
     node& operator=(node&& rhs) noexcept;
 
     // Creates a new subnode or opens an existing subnode
     // The subnode can be several levels deep in the volume tree
-    node* create_subnode(path_view subnode_path);
+    std::shared_ptr<node> create_subnode(path_view subnode_path);
 
     // Retrieves the specified subnode
     // The subnode can be several levels deep in the volume tree
-    node* open_subnode(path_view subnode_path);
+    std::shared_ptr<node> open_subnode(path_view subnode_path) const;
 
     // Deletes a subnode and any child subnodes recursively
     // The subnode can be several levels deep in the volume tree
-    size_t delete_subnode_tree(path_view subnode_path);
+    bool delete_subnode_tree(path_view subnode_name);
 
     // Retrieves an array of strings that contains all the subnode names
-    std::unordered_set<std::string> get_subnode_names();
+    // std::unordered_set<std::string> get_subnode_names();
+
+    template <typename Function>
+    void for_each_subnode(Function f) const
+    {
+        subnodes_.for_each(f);
+    }
 
 
     // Deletes the specified value from this node
@@ -156,24 +179,22 @@ class node
 
 
 private:
-    node(std::string name, volume* volume, node* parent);
-
-    void set_name(const std::string& new_subnode_name);
-
-    void set_volume(volume* volume);
+    node(std::string name, std::string path, uint8_t volume_priority, size_t depth);
 
     void register_observer(detail::node_observer* observer);
-
-    void unregister_observer(detail::node_observer* observer);
+    void unregister_observer(const detail::node_observer* observer);
+    void notify_on_delete_subnode_observers(const std::shared_ptr<node>& subnode) const;
 
   private:
     std::string name_;
-    volume* volume_;
-    node* parent_;
-    std::unordered_map<std::string, node> subnodes_;
+    std::string path_;
+    uint8_t volume_priority;
+    // node* parent_;
+    striped_hashmap<std::string, std::shared_ptr<node>> subnodes_;
     striped_hashmap<std::string, value_type> values_;
-    std::list<detail::node_observer*> observers_;
-    bool deleted_ = false;
+    sorted_list<detail::node_observer*> observers_;
+    std::atomic_bool deleted_ = false;
+    size_t depth_ = 0;
 };
 
 template <typename T, typename>

@@ -1,24 +1,21 @@
 #include "datastore/vault.hpp"
 #include "datastore/volume.hpp"
 
+#include <iostream>
+#include <sstream>
 #include <catch2/catch_test_macros.hpp>
 
+using namespace datastore;
 using namespace datastore::literals;
 
 TEST_CASE("Volume nodes can be loaded into a node view", "[node_view]")
 {
-    datastore::volume vol(datastore::volume::priority_class::medium);
+    volume vol(volume::priority_class::medium);
     vol.root()->set_value("k", "v");
 
-    datastore::vault vault;
+    vault vault;
 
-    CHECK(vault.root()->get_subnode_names().empty());
-
-    vault.root()->load_subnode("vol", vol.root());
-
-    auto subnode_names = vault.root()->get_subnode_names();
-    CHECK(subnode_names.size() == 1);
-    CHECK(subnode_names.count("vol") == 1);
+    vault.root()->load_subnode_tree("vol", vol.root());
 
     auto vol_view = vault.root()->open_subnode("vol");
     CHECK(vol_view != nullptr);
@@ -30,7 +27,7 @@ TEST_CASE("Volume nodes can be loaded into a node view", "[node_view]")
     CHECK(vol_view->get_value<std::string>("k") == "v");
 
     vol.root()->create_subnode("1")->set_value("k1", "v1");
-    vault.root()->load_subnode("vol", vol.root()->open_subnode("1"));
+    vault.root()->load_subnode_tree("vol", vol.root()->open_subnode("1"));
 
     values = vol_view->get_values();
 
@@ -47,18 +44,15 @@ TEST_CASE("Volume nodes can be loaded into a node view", "[node_view]")
 
 TEST_CASE("Volume nodes can be unloaded from a node view", "[node_view]")
 {
-    datastore::volume vol(datastore::volume::priority_class::medium);
+    volume vol(volume::priority_class::medium);
     vol.root()->create_subnode("1.2.3");
 
-    datastore::vault vault;
+    vault vault;
 
-    CHECK(vault.root()->get_subnode_names().empty());
-
-    auto subnode = vault.root()->load_subnode("vol", vol.root());
-    size_t num_unloaded = vault.root()->unload_subnode("vol");
+    std::shared_ptr<node_view> subnode = vault.root()->load_subnode_tree("vol", vol.root());
+    size_t num_unloaded = vault.root()->unload_subnode_tree("vol");
 
     CHECK(num_unloaded == 4);
-    CHECK(vault.root()->get_subnode_names().empty());
     CHECK(vault.root()->open_subnode("vol") == nullptr);
     CHECK(vault.root()->open_subnode("vol.1") == nullptr);
     CHECK(vault.root()->open_subnode("vol.1.2") == nullptr);
@@ -78,10 +72,8 @@ TEST_CASE("In case of conflicting names, value is taken from a volume with a hig
 
     datastore::vault vault;
 
-    CHECK(vault.root()->get_subnode_names().empty());
-
-    vault.root()->load_subnode("vol", vol1.root());
-    vault.root()->load_subnode("vol", vol2.root());
+    vault.root()->load_subnode_tree("vol", vol1.root());
+    vault.root()->load_subnode_tree("vol", vol2.root());
 
     auto subnode = vault.root()->open_subnode("vol");
     auto value_names = subnode->get_values();
@@ -98,17 +90,12 @@ TEST_CASE("Same volume node can be loaded multiple times into different node vie
 
     datastore::vault vault;
 
-    CHECK(vault.root()->get_subnode_names().empty());
-
-    vault.root()->load_subnode("1", vol1.root());
-    vault.root()->load_subnode("2", vol1.root());
-
-    auto subnode_names = vault.root()->get_subnode_names();
-    CHECK(subnode_names.size() == 2);
-    CHECK(subnode_names.count("1") == 1);
-    CHECK(subnode_names.count("2") == 1);
+    vault.root()->load_subnode_tree("1", vol1.root());
+    vault.root()->load_subnode_tree("2", vol1.root());
 
     auto subnode1 = vault.root()->open_subnode("1");
+    CHECK(subnode1 != nullptr);
+
     auto subnode1_value_names = subnode1->get_values();
     CHECK(subnode1_value_names.size() == 1);
     CHECK(subnode1_value_names.count("k") == 1);
@@ -116,6 +103,8 @@ TEST_CASE("Same volume node can be loaded multiple times into different node vie
     CHECK(subnode1->get_value<uint32_t>("k") == 0_u32);
 
     auto subnode2 = vault.root()->open_subnode("2");
+    CHECK(subnode2 != nullptr);
+
     auto subnode2_value_names = subnode2->get_values();
     CHECK(subnode2_value_names.size() == 1);
     CHECK(subnode2_value_names.count("k") == 1);
@@ -128,10 +117,10 @@ TEST_CASE("Node can be used in multiple vaults at the same time", "[vault]")
     datastore::volume vol(datastore::volume::priority_class::medium);
 
     datastore::vault vault1;
-    vault1.root()->load_subnode("vol", vol.root());
+    vault1.root()->load_subnode_tree("vol", vol.root());
 
     datastore::vault vault2;
-    vault2.root()->load_subnode("vol", vol.root());
+    vault2.root()->load_subnode_tree("vol", vol.root());
 
     CHECK(vault1.root()->open_subnode("vol") != nullptr);
     CHECK(vault2.root()->open_subnode("vol") != nullptr);
@@ -142,7 +131,7 @@ TEST_CASE("Node view picks up the changes to the underlying nodes", "[node_view]
     datastore::volume vol(datastore::volume::priority_class::medium);
 
     datastore::vault vault;
-    vault.root()->load_subnode("vol", vol.root());
+    vault.root()->load_subnode_tree("vol", vol.root());
 
     vol.root()->create_subnode("1");
     CHECK(vault.root()->open_subnode("vol.1") != nullptr);
@@ -160,8 +149,8 @@ TEST_CASE("Volume priority is respected by a node view after setting a value out
     vol2.root()->create_subnode("1")->set_value("k", "v2");
 
     datastore::vault vault;
-    vault.root()->load_subnode("vol", vol1.root());
-    vault.root()->load_subnode("vol", vol2.root());
+    vault.root()->load_subnode_tree("vol", vol1.root());
+    vault.root()->load_subnode_tree("vol", vol2.root());
 
     CHECK(vault.root()->open_subnode("vol.1")->get_values().size() == 1);
     CHECK(vault.root()->open_subnode("vol.1")->get_values().count("k") == 1);
@@ -183,9 +172,9 @@ TEST_CASE("When a node has multiple node views, "
     vol.root()->create_subnode("1")->set_value("k", "v");
 
     datastore::vault vault;
-    vault.root()->load_subnode("vol", vol.root());
-    vault.root()->open_subnode("vol")->load_subnode("1", vol.root());
-    vault.root()->open_subnode("vol")->load_subnode("2", vol.root());
+    vault.root()->load_subnode_tree("vol", vol.root());
+    vault.root()->open_subnode("vol")->load_subnode_tree("1", vol.root());
+    vault.root()->open_subnode("vol")->load_subnode_tree("2", vol.root());
 
     CHECK(vault.root()->open_subnode("vol.1") != nullptr);
     CHECK(vault.root()->open_subnode("vol.1")->get_values().size() == 1);
@@ -219,7 +208,7 @@ TEST_CASE("If a node gets deleted and recreated outside of a vault, respective n
     vol.root()->create_subnode("1")->set_value("k", "v");
 
     datastore::vault vault;
-    vault.root()->load_subnode("vol", vol.root());
+    vault.root()->load_subnode_tree("vol", vol.root());
 
     size_t num_deleted = vol.root()->delete_subnode_tree("1");
     CHECK(num_deleted == 1);
@@ -235,16 +224,16 @@ TEST_CASE("If a node gets deleted and recreated outside of a vault, respective n
 
 TEST_CASE("Node views get updated accordingly when a node tree is deleted")
 {
-    datastore::volume vol1(datastore::volume::priority_class::medium);
+    volume vol1(volume::priority_class::medium);
     vol1.root()->create_subnode("1")->set_value("k", "v1");
     vol1.root()->create_subnode("1.2.3");
 
-    datastore::volume vol2(datastore::volume::priority_class::low);
+    volume vol2(volume::priority_class::low);
     vol2.root()->create_subnode("1")->set_value("k", "v2");
 
-    datastore::vault vault;
-    vault.root()->load_subnode("vol", vol1.root());
-    vault.root()->load_subnode("vol", vol2.root());
+    vault vault;
+    vault.root()->load_subnode_tree("vol", vol1.root());
+    vault.root()->load_subnode_tree("vol", vol2.root());
 
     CHECK(vault.root()->open_subnode("vol.1") != nullptr);
     CHECK(vault.root()->open_subnode("vol.1")->get_values().size() == 1);
@@ -267,28 +256,39 @@ TEST_CASE("Node views get updated accordingly when a node tree is deleted")
 
 TEST_CASE("Volume is accessible after vault destruction")
 {
-    datastore::volume vol(datastore::volume::priority_class::medium);
+    volume vol(volume::priority_class::medium);
     vol.root()->create_subnode("1.2");
-    vol.root()->create_subnode("3.4");
 
     {
-        datastore::vault vault;
-        vault.root()->load_subnode("vol", vol.root());
+        vault vault;
+        vault.root()->load_subnode_tree("vol", vol.root());
     }
 
-    size_t num_deleted = vol.root()->delete_subnode_tree("1");
+    CHECK(vol.root()->delete_subnode_tree("1"));
+}
 
-    CHECK(num_deleted == 2);
+TEST_CASE("Loaded volume nodes are accessible in a vault after volume destruction")
+{
+    vault vault;
+
+    {
+        volume vol(volume::priority_class::medium);
+        vol.root()->create_subnode("1.2");
+
+        vault.root()->load_subnode_tree("vol", vol.root());
+    }
+
+    CHECK(vault.root()->open_subnode("vol.1.2") != nullptr);
 }
 
 TEST_CASE("Unloading non-existent node fails")
 {
-    datastore::volume vol(datastore::volume::priority_class::medium);
+    volume vol(volume::priority_class::medium);
 
-    datastore::vault vault;
-    vault.root()->load_subnode("vol", vol.root());
+    vault vault;
+    vault.root()->load_subnode_tree("vol", vol.root());
 
-    size_t num_unlaoded = vault.root()->unload_subnode("root");
+    size_t num_unlaoded = vault.root()->unload_subnode_tree("root");
 
     CHECK(num_unlaoded == 0);
 }

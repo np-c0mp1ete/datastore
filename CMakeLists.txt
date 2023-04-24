@@ -60,6 +60,9 @@ add_library(datastore
     include/datastore/vault.hpp
     include/datastore/volume.hpp
 
+    include/datastore/detail/sorted_list.hpp
+    include/datastore/detail/striped_hashmap.hpp
+
     src/node.cpp
     src/node_view.cpp
     src/vault.cpp
@@ -67,6 +70,7 @@ add_library(datastore
 )
 
 target_include_directories(datastore PUBLIC ${PROJECT_SOURCE_DIR}/include)
+target_compile_definitions(datastore PUBLIC DATASTORE_DEBUG=1)
 
 add_subdirectory(examples)
 add_subdirectory(tests)

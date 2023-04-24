@@ -1,5 +1,5 @@
 add_executable(example main.cpp)
 target_link_libraries(example PRIVATE datastore)
 
-add_executable(concurrent_values_usage concurrent_values_usage.cpp)
-target_link_libraries(concurrent_values_usage PRIVATE datastore)
+add_executable(test_volume_concurrency test_volume_concurrency.cpp)
+target_link_libraries(test_volume_concurrency PRIVATE datastore)

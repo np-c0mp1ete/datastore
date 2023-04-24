@@ -12,10 +12,11 @@ namespace datastore
 namespace detail
 {
 // TODO: add serializer unit tests
-class serializer
+class serializer final
 {
   public:
-    std::optional<node> deserialize_node(volume& vol, node* parent, std::vector<uint8_t>& buffer, size_t& pos);
+    std::optional<node> deserialize_node(uint8_t volume_priority, const std::string& path, size_t cur_depth,
+                                         std::vector<uint8_t>& buffer, size_t& pos);
     bool serialize_node(node& n, std::vector<uint8_t>& buffer);
 
     std::optional<volume> deserialize_volume(std::vector<uint8_t>& buffer);
@@ -23,7 +24,7 @@ class serializer
 };
 } // namespace detail
 
-class volume
+class volume final
 {
     friend class detail::serializer;
 
@@ -49,16 +50,18 @@ class volume
 
     volume(priority_t priority);
 
-    [[nodiscard]] volume(volume&& other) noexcept;
+    [[nodiscard]] volume(const volume& other) = delete;
+    [[nodiscard]] volume(volume&& other) noexcept = default;
 
-    volume& operator=(volume&& rhs) noexcept;
+    volume& operator=(const volume& rhs) = delete;
+    volume& operator=(volume&& rhs) noexcept = default;
 
     bool unload(const std::filesystem::path& filepath);
     static std::optional<volume> load(const std::filesystem::path& filepath);
 
-    node* root()
+    std::shared_ptr<node> root()
     {
-        return &root_;
+        return root_;
     }
 
     [[nodiscard]] priority_t priority() const
@@ -67,8 +70,7 @@ class volume
     }
 
 private:
-    uint8_t format_version_[2];
     priority_t priority_;
-    node root_ = node("root", this, nullptr);
+    std::shared_ptr<node> root_;
 };
 } // namespace datastore
