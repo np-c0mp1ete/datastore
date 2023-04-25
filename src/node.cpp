@@ -31,7 +31,7 @@ node::node(std::string name, std::string path, uint8_t volume_priority, size_t d
 {
 }
 
-[[nodiscard]] node::node(node&& other) noexcept
+node::node(node&& other) noexcept
     : name_(std::move(other.name_)), path_(std::move(other.path_)), volume_priority(other.volume_priority),
       subnodes_(std::move(other.subnodes_)),
       values_(std::move(other.values_)), depth_(other.depth_)
@@ -61,8 +61,8 @@ std::shared_ptr<node> node::create_subnode(path_view subnode_path)
     const std::string subnode_name = std::string(*subnode_path.front());
 
     std::shared_ptr<node> subnode(new node(subnode_name, path_ + path_view::path_separator + subnode_name, volume_priority, depth_ + 1));
-    const auto& [real_subnode, success] = subnodes_.insert_with_limit_if_not_exist(subnode_name, subnode, max_num_subnodes);
-
+    const auto& subnode_success_pair = subnodes_.insert_with_limit_if_not_exist(subnode_name, subnode, max_num_subnodes);
+    const auto [real_subnode, success] = subnode_success_pair;
     if (!success)
         return nullptr;
 
@@ -74,7 +74,9 @@ std::shared_ptr<node> node::create_subnode(path_view subnode_path)
         return real_subnode->create_subnode(std::move(subnode_path));
     }
 
-    observers_.for_each([&](detail::node_observer* observer) { observer->on_create_subnode(real_subnode); });
+    observers_.for_each([&](detail::node_observer* observer) {
+        observer->on_create_subnode(subnode_success_pair.first);
+    });
 
     // for (std::weak_ptr<detail::node_observer>& observer : observers_)
     // {
@@ -231,20 +233,14 @@ std::ostream& operator<<(std::ostream& lhs, const node& rhs)
 {
     lhs << rhs.path() << std::endl;
 
-    auto values = rhs.values_.get_map();
-    for (const auto& [name, value] : values)
-    {
+    rhs.for_each_value([&](const std::pair<std::string, value_type>& kv_pair) {
+        auto& [name, value] = kv_pair;
         lhs << name << " = " << value << std::endl;
-    }
+    });
 
     rhs.for_each_subnode([&](const std::pair<std::string, std::shared_ptr<node>>& kv_pair) {
         lhs << *kv_pair.second;
     });
-
-    // for (const auto& [name, subnode] : rhs.subnodes_)
-    // {
-    //     lhs << subnode;
-    // }
 
     return lhs;
 }

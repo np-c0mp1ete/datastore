@@ -1,3 +1,4 @@
 BasedOnStyle: Microsoft
+AllowShortLambdasOnASingleLine: Empty
 AlwaysBreakTemplateDeclarations: Yes
 PointerAlignment: Left

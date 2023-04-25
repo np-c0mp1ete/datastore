@@ -14,7 +14,7 @@ bool compare_nodes(const std::shared_ptr<node>& n1, const std::shared_ptr<node>&
 }
 
 
-class node_view final : private detail::node_observer
+class node_view final : detail::node_observer
 {
     friend class vault;
 
@@ -24,11 +24,11 @@ class node_view final : private detail::node_observer
     static constexpr size_t max_num_subnodes = 255;
     static constexpr size_t max_num_values = 255;
 
-    [[nodiscard]] node_view(const node_view& other) = delete;
+    node_view(const node_view& other) = delete;
 
-    [[nodiscard]] node_view(node_view&& other) noexcept;
+    node_view(node_view&& other) noexcept;
 
-    ~node_view() noexcept;
+    ~node_view() noexcept override;
 
     node_view& operator=(const node_view& rhs) = delete;
 
@@ -43,18 +43,18 @@ class node_view final : private detail::node_observer
     std::shared_ptr<node_view> open_subnode(path_view subnode_path) const;
 
     // TODO: what if the same node is loaded twice: one time as root and another time as child?
-    // TODO: check that the noad was already loaded
+    // TODO: check that the node was already loaded
     // Creates a subnode and loads the data from the specified node into that subnode
     std::shared_ptr<node_view> load_subnode_tree(path_view subview_name, const std::shared_ptr<node>& subnode);
 
     // Unloads the specified subnode and its subnodes from the vault
     // This function removes a subnode from the vault but does not modify the volume containing the information.
-    size_t unload_subnode_tree(path_view subview_name);
+    bool unload_subnode_tree(path_view subview_name);
 
     // Deletes a subnode and any child subnodes recursively
     // The subnode can be several levels deep in the volume tree
     // Can't delete tree roots loaded using load_subnode_tree
-    size_t delete_subview_tree(path_view subview_name);
+    bool delete_subview_tree(path_view subview_name);
 
     // Retrieves an array of strings that contains all the subnode names
     // [[nodiscard]] std::unordered_set<std::string> get_subnode_names() const;
@@ -81,15 +81,30 @@ class node_view final : private detail::node_observer
     bool set_value(const std::string& value_name, T&& new_value);
 
     // Retrieves an array of strings that contains all the value names associated with this node
-    [[nodiscard]] auto get_values() const
+    // [[nodiscard]] auto get_values() const
+    // {
+    //     std::map<std::string, value_type> values;
+    //     // for (const std::shared_ptr<node>& node : nodes_)
+    //     // {
+    //     //     auto&& value_names = node->get_values();
+    //     //     values.insert(value_names.begin(), value_names.end());
+    //     // }
+    //     return values;
+    // }
+
+    template <typename Function>
+    void for_each_value(Function f) const
     {
-        std::map<std::string, value_type> values;
-        // for (const std::shared_ptr<node>& node : nodes_)
-        // {
-        //     auto&& value_names = node->get_values();
-        //     values.insert(value_names.begin(), value_names.end());
-        // }
-        return values;
+        std::unordered_map<std::string, value_type> values;
+
+        nodes_.for_each([&](const std::shared_ptr<node>& node) {
+            node->for_each_value([&](const std::pair<std::string, value_type>& kv_pair) {
+                auto& [name, value] = kv_pair;
+                values.emplace(name, value);
+            });
+        });
+
+        std::for_each(values.begin(), values.end(), f);
     }
 
     std::string_view name();

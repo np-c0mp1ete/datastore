@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <functional>
 #include <list>
 #include <map>
@@ -159,23 +160,23 @@ class striped_hashmap
         return num_elements_;
     }
 
-    [[nodiscard]] std::map<Key, Value> get_map() const
-    {
-        std::vector<std::unique_lock<std::shared_mutex>> locks;
-        for (unsigned i = 0; i < buckets_.size(); ++i)
-        {
-            locks.push_back(std::unique_lock<std::shared_mutex>(buckets_[i]->mutex));
-        }
-        std::map<Key, Value> res;
-        for (unsigned i = 0; i < buckets_.size(); ++i)
-        {
-            for (auto it = buckets_[i]->data.begin(); it != buckets_[i]->data.end(); ++it)
-            {
-                res.insert(*it);
-            }
-        }
-        return res;
-    }
+    // [[nodiscard]] std::map<Key, Value> get_map() const
+    // {
+    //     std::vector<std::unique_lock<std::shared_mutex>> locks;
+    //     for (unsigned i = 0; i < buckets_.size(); ++i)
+    //     {
+    //         locks.push_back(std::unique_lock<std::shared_mutex>(buckets_[i]->mutex));
+    //     }
+    //     std::map<Key, Value> res;
+    //     for (unsigned i = 0; i < buckets_.size(); ++i)
+    //     {
+    //         for (auto it = buckets_[i]->data.begin(); it != buckets_[i]->data.end(); ++it)
+    //         {
+    //             res.insert(*it);
+    //         }
+    //     }
+    //     return res;
+    // }
 
     template <typename Function>
     void for_each(Function f) const

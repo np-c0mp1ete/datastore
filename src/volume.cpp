@@ -268,17 +268,20 @@ bool serializer::serialize_node(node& n, std::vector<uint8_t>& buffer)
 
     success = success && serialize_str(n.name_, buffer);
 
-    auto values = n.values_.get_map();
-    success = success && serialize_u64(static_cast<uint64_t>(values.size()), buffer);
+    const size_t values_size_pos = buffer.size();
+    success = success && serialize_u64(static_cast<uint64_t>(0), buffer);
 
-    for (auto& [value_name, value] : values)
-    {
+    uint64_t num_values = 0;
+    n.for_each_value([&](const std::pair<std::string, value_type>& kv_pair) {
+        auto& [value_name, value] = kv_pair;
         success = success && serialize_str(value_name, buffer);
         success = success && serialize_u64(static_cast<uint64_t>(value.index()), buffer);
         success = success && std::get<2>(serializers[value.index()])(value, buffer);
-    }
+        num_values++;
+    });
+    std::copy_n(reinterpret_cast<uint8_t*>(&num_values), sizeof(uint64_t), buffer.data() + values_size_pos);
 
-    size_t subnodes_size_pos = buffer.size();
+    const size_t subnodes_size_pos = buffer.size();
     success = success && serialize_u64(static_cast<uint64_t>(0), buffer);
 
     // TODO: don't serialize deleted nodes
@@ -287,7 +290,6 @@ bool serializer::serialize_node(node& n, std::vector<uint8_t>& buffer)
         success = success && serialize_node(*kv_pair.second, buffer);
         num_subnodes++;
     });
-
     std::copy_n(reinterpret_cast<uint8_t*>(&num_subnodes), sizeof(uint64_t), buffer.data() + subnodes_size_pos);
 
     return success;

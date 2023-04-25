@@ -88,8 +88,15 @@ public:
 
     std::shared_ptr<T> front()
     {
+        node* current = head_.get();
         std::unique_lock<std::mutex> lk(head_->m);
-        return head_->data;
+        while (node* const next = current->next.get())
+        {
+            std::unique_lock<std::mutex> next_lk(next->m);
+            lk.unlock();
+            return next->data;
+        }
+        return std::shared_ptr<T>();
     }
 
     size_t size()

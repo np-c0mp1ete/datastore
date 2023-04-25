@@ -23,7 +23,7 @@ class path_view
         valid_ = parse(path);
     }
 
-    path_view(nullptr_t) = delete;
+    path_view(std::nullptr_t) = delete;
 
     [[nodiscard]] bool valid() const
     {

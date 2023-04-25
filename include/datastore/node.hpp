@@ -114,15 +114,15 @@ class node final
     friend class detail::node_observer;
     friend class node_view;
 
-    friend std::ostream& operator<<(std::ostream& lhs, const node& rhs);
-    friend std::ostream& operator<<(std::ostream& lhs, const node_view& rhs);
+    //friend std::ostream& operator<<(std::ostream& lhs, const node& rhs);
+    //friend std::ostream& operator<<(std::ostream& lhs, const node_view& rhs);
 
   public:
     static constexpr size_t max_num_subnodes = 255;
     static constexpr size_t max_num_values = 255;
 
-    [[nodiscard]] node(const node& other) = delete;
-    [[nodiscard]] node(node&& other) noexcept;
+    node(const node& other) = delete;
+    node(node&& other) noexcept;
 
     node& operator=(const node& rhs) = delete;
     node& operator=(node&& rhs) noexcept;
@@ -142,6 +142,9 @@ class node final
     // Retrieves an array of strings that contains all the subnode names
     // std::unordered_set<std::string> get_subnode_names();
 
+    // Leave it up to the user to ensure that they don't cause deadlock
+    // by acquiring locks in the user-supplied operations
+    // and don't cause data races by storing the references for access outside the locks.
     template <typename Function>
     void for_each_subnode(Function f) const
     {
@@ -166,9 +169,18 @@ class node final
 
     // Retrieves an array of strings that contains all the value names associated with this node
     //TODO: use for_each pattern instead
-    auto get_values() const
+    // auto get_values() const
+    // {
+    //     return values_.get_map();
+    // }
+
+    // Leave it up to the user to ensure that they don't cause deadlock
+    // by acquiring locks in the user-supplied operations
+    // and don't cause data races by storing the references for access outside the locks.
+    template <typename Function>
+    void for_each_value(Function f) const
     {
-        return values_.get_map();
+        values_.for_each(f);
     }
 
     std::string_view name();

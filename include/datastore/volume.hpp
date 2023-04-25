@@ -50,8 +50,8 @@ class volume final
 
     volume(priority_t priority);
 
-    [[nodiscard]] volume(const volume& other) = delete;
-    [[nodiscard]] volume(volume&& other) noexcept = default;
+    volume(const volume& other) = delete;
+    volume(volume&& other) noexcept = default;
 
     volume& operator=(const volume& rhs) = delete;
     volume& operator=(volume&& rhs) noexcept = default;

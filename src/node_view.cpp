@@ -40,7 +40,7 @@ node_view::node_view(const path_view& path, size_t depth) : depth_(depth), nodes
 //     }
 // }
 
-[[nodiscard]] node_view::node_view(node_view&& other) noexcept
+node_view::node_view(node_view&& other) noexcept
     : path_(std::move(other.path_)), depth_(other.depth_),
       subviews_(std::move(other.subviews_)), nodes_(std::move(other.nodes_))
 {
@@ -104,8 +104,24 @@ std::shared_ptr<node_view> node_view::create_subnode(path_view subnode_path)
 
     const std::string subnode_name = std::string(*subnode_path.front());
 
-    // TODO: always takes the node with the highest precedence
-    const std::shared_ptr<node>& subnode = (*nodes_.front())->create_subnode(std::move(subnode_path));
+    // some subviews on the path might not have a node attached
+    // root subview never has a node
+    std::optional<std::shared_ptr<node_view>> opt = subviews_.find(subnode_name);
+    if (opt)
+    {
+        if (!subnode_path.composite())
+            return opt.value();
+
+        subnode_path.pop_front();
+        return opt.value()->create_subnode(std::move(subnode_path));
+    }
+
+    // always takes the node with the highest precedence
+    auto main_node = nodes_.front();
+    if (!main_node)
+        return nullptr;
+
+    const std::shared_ptr<node>& subnode = (*main_node)->create_subnode(std::move(subnode_path));
     if (!subnode)
         return nullptr;
 
@@ -160,15 +176,17 @@ std::shared_ptr<node_view> node_view::load_subnode_tree(path_view subview_name, 
 
     // Create a subview to hold the subnode
     std::shared_ptr<node_view> subview(new node_view(path_ + path_view::path_separator + target_subnode_name, depth_ + 1));
-    const auto [real_subview, inserted] =
+    const auto subview_inserted_pair =
         subviews_.insert_with_limit_if_not_exist(target_subnode_name, subview, max_num_subnodes);
+    const auto [real_subview, inserted] = subview_inserted_pair;
     if (!inserted)
         return nullptr;
 
     // Try to load all subnodes recursively
     bool success = true;
     subnode->for_each_subnode([&](const std::pair<std::string, std::shared_ptr<node>>& kv_pair) {
-        success = success && real_subview->load_subnode_tree(kv_pair.first, subnode->open_subnode(kv_pair.first)) != nullptr;
+        success = success && subview_inserted_pair.first->load_subnode_tree(kv_pair.first,
+                                                                      subnode->open_subnode(kv_pair.first)) != nullptr;
     });
 
     if (!success)
@@ -185,24 +203,24 @@ std::shared_ptr<node_view> node_view::load_subnode_tree(path_view subview_name, 
     return real_subview;
 }
 
-size_t node_view::unload_subnode_tree(path_view subview_name)
+bool node_view::unload_subnode_tree(path_view subview_name)
 {
     if (!subview_name.valid() || subview_name.composite())
-        return 0;
+        return false;
 
     const std::shared_ptr<node_view>& subview = open_subnode(subview_name.str());
     if (!subview)
-        return 0;
+        return false;
 
     subview->expired_ = true;
 
-    return subviews_.erase(subview_name.str());
+    return subviews_.erase(subview_name.str()) > 0;
 }
 
-size_t node_view::delete_subview_tree(path_view subview_name)
+bool node_view::delete_subview_tree(path_view subview_name)
 {
     if (!subview_name.valid() || subview_name.composite())
-        return 0;
+        return false;
 
     const std::string target_subview_name = subview_name.str();
 
@@ -250,7 +268,8 @@ std::optional<value_kind> node_view::get_value_kind(const std::string& value_nam
     std::optional<value_kind> kind;
 
     nodes_.find_first_if([&](const std::shared_ptr<node>& node) {
-        return node->get_value_kind(value_name);
+        kind = node->get_value_kind(value_name);
+        return kind.has_value();
     });
 
     return kind;
@@ -275,13 +294,11 @@ std::ostream& operator<<(std::ostream& lhs, const node_view& rhs)
     lhs << rhs.path() << std::endl;
 
     rhs.nodes_.for_each([&](const std::shared_ptr<node>& node) {
-        auto values = node->values_.get_map();
-        for (const auto& [name, value] : values)
-        {
-            lhs << "-> [" << static_cast<size_t>(node->priority()) << "] " << name << "@" << node->path() <<
-                " = "
+        node->for_each_value([&](const std::pair<std::string, value_type>& kv_pair) {
+            auto& [name, value] = kv_pair;
+            lhs << "-> [" << static_cast<size_t>(node->priority()) << "] " << name << "@" << node->path() << " = "
                 << value << std::endl;
-        }
+        });
     });
 
     rhs.subviews_.for_each([&](const std::pair<std::string, std::shared_ptr<node_view>>& kv_pair) {

@@ -1,6 +1,5 @@
 #include "datastore/node.hpp"
-// #include "datastore/node_view.hpp"
-// #include "datastore/vault.hpp"
+#include "datastore/node_view.hpp"
 #include "datastore/vault.hpp"
 #include "datastore/volume.hpp"
 
