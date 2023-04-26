@@ -5,54 +5,73 @@ project(datastore CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+option(DATASTORE_ADDRESS_SANITIZER "Enable address sanitizer" ON)
+option(DATASTORE_UB_SANITIZER "Enable undefined behavior sanitizer" ON)
+option(DATASTORE_THREAD_SANITIZER "Enable thread sanitizer" ON)
+
 if(MSVC)
     # Use the highest warning level for Visual Studio.
     set(CMAKE_CXX_WARNING_LEVEL 4)
     if(CMAKE_CXX_FLAGS MATCHES "/W[0-4]")
         string(REGEX REPLACE "/W[0-4]" "/W4" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
     else()
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
+        string(APPEND CMAKE_CXX_FLAGS " /W4")
     endif()
 
     # Disable exceptions
     string(REGEX REPLACE "/EH[a-z]+" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc")
+    string(APPEND CMAKE_CXX_FLAGS " /EHsc")
 
     # Disable RTTI
     string(REGEX REPLACE "/GR" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /GR-")
+    string(APPEND CMAKE_CXX_FLAGS " /GR-")
 
     # Generate debug information
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zi")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /DEBUG")
+    string(APPEND CMAKE_CXX_FLAGS " /Zi")
+    string(APPEND CMAKE_EXE_LINKER_FLAGS " /DEBUG")
 else()
     # Use -Wall for clang and gcc.
     if(NOT CMAKE_CXX_FLAGS MATCHES "-Wall")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
-    endif(NOT CMAKE_CXX_FLAGS MATCHES "-Wall")
-    
+        string(APPEND CMAKE_CXX_FLAGS " -Wall")
+    endif()
+
     # Use -Wextra for clang and gcc.
     if(NOT CMAKE_CXX_FLAGS MATCHES "-Wextra")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wextra")
-    endif(NOT CMAKE_CXX_FLAGS MATCHES "-Wextra")
-    
+        string(APPEND CMAKE_CXX_FLAGS " -Wextra")
+    endif()
+
     # Use -Werror for clang and gcc.
     if(NOT CMAKE_CXX_FLAGS MATCHES "-Werror")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
-    endif(NOT CMAKE_CXX_FLAGS MATCHES "-Werror")
+        string(APPEND CMAKE_CXX_FLAGS " -Werror")
+    endif()
 
     # Disable exceptions
     string(REGEX REPLACE "-fexceptions" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
+    string(APPEND CMAKE_CXX_FLAGS " -fno-exceptions")
 
     # Disable RTTI
     string(REGEX REPLACE "-frtti" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
+    string(APPEND CMAKE_CXX_FLAGS " -fno-rtti")
 
     # Generate debug information
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
+    string(APPEND CMAKE_CXX_FLAGS " -g")
 
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+    string(APPEND CMAKE_CXX_FLAGS " -pthread")
+
+    if (DATASTORE_ENABLE_ASAN)
+        string(APPEND CMAKE_CXX_FLAGS " -fsanitize=address")
+        string(APPEND CMAKE_EXE_LINKER_FLAGS " -fsanitize=address")
+    endif()
+
+    if (DATASTORE_UB_SANITIZER)
+        string(APPEND CMAKE_CXX_FLAGS " -fsanitize=undefined")
+        string(APPEND CMAKE_EXE_LINKER_FLAGS " -fsanitize=undefined")
+    endif()
+
+    if (DATASTORE_THREAD_SANITIZER)
+        string(APPEND CMAKE_CXX_FLAGS " -fsanitize=thread")
+        string(APPEND CMAKE_EXE_LINKER_FLAGS " -fsanitize=thread")
+    endif()
 endif()
 
 add_library(datastore
