@@ -5,6 +5,8 @@
 
 #include <array>
 
+using namespace datastore;
+
 namespace
 {
 template <size_t... Ints>
@@ -15,25 +17,24 @@ auto to_string(std::integer_sequence<size_t, Ints...>)
 
 // Cache stringified indices
 constexpr size_t max_idx =
-    std::max(datastore::node_view::max_num_subnodes, datastore::node_view::max_num_values);
+    std::max(node_view::max_num_subnodes, node_view::max_num_values);
 const auto idx_str = to_string(std::make_index_sequence<max_idx>{});
 
-const std::string max_str = std::string(datastore::max_str_value_size_bytes, 'a');
+const std::string max_str = std::string(max_str_value_size_bytes, 'a');
 
-void init_tree(datastore::node_view* parent, size_t cur_depth = 0)
+void init_tree(const std::shared_ptr<node_view>& parent, size_t cur_depth = 0)
 {
-    if (cur_depth > datastore::vault::max_tree_depth)
+    if (cur_depth >= vault::max_tree_depth)
         return;
     cur_depth++;
 
-    for (size_t subnode_idx = 0; subnode_idx < datastore::node_view::max_num_subnodes; subnode_idx++)
+    for (size_t subnode_idx = 0; subnode_idx < node_view::max_num_subnodes; subnode_idx++)
     {
-        datastore::node_view* subnode = parent->create_subnode(idx_str[subnode_idx]);
+        std::shared_ptr<node_view> subnode = parent->create_subnode(idx_str[subnode_idx]);
         CHECK(subnode != nullptr);
 
-        for (size_t value_idx = 0; value_idx < datastore::node_view::max_num_values; value_idx++)
+        for (size_t value_idx = 0; value_idx < node_view::max_num_values; value_idx++)
         {
-            // string copy is the main bottleneck
             CHECK(subnode->set_value(idx_str[value_idx], max_str));
         }
 
@@ -41,43 +42,46 @@ void init_tree(datastore::node_view* parent, size_t cur_depth = 0)
     }
 }
 
-void check_tree(datastore::node_view* parent, size_t cur_depth = 0)
+void check_tree(const std::shared_ptr<node_view>& parent, size_t cur_depth = 0)
 {
-    if (cur_depth > datastore::vault::max_tree_depth)
+    if (cur_depth >= vault::max_tree_depth)
         return;
     cur_depth++;
 
-    auto subnode_names = parent->get_subnode_names();
-    CHECK(subnode_names.size() == datastore::node_view::max_num_subnodes);
+    size_t num_subnodes = 0;
+    parent->for_each_subnode([&](const std::pair<std::string, std::shared_ptr<node_view>>& name_node_pair) {
+        auto& [subnode_name, _] = name_node_pair;
 
-    for (auto& subnode_name : subnode_names)
-    {
-        datastore::node_view* subnode = parent->open_subnode(subnode_name);
+        std::shared_ptr<node_view> subnode = parent->open_subnode(subnode_name);
         CHECK(subnode != nullptr);
 
-        auto values = subnode->get_values();
-        CHECK(values.size() == datastore::node_view::max_num_values);
-
-        for (auto& [name, value] : values)
-        {
-            //TODO: we shouldn't reference the node, use the returned map instead
+        size_t num_values = 0;
+        subnode->for_each_value([&](const std::pair<std::string, value_type>& name_value_pair) {
+            auto& [name, value] = name_value_pair;
             CHECK(subnode->get_value_kind(name) == datastore::value_kind::str);
             CHECK(subnode->get_value<std::string>(name) == max_str);
-        }
+            num_values++;
+        });
+
+        CHECK(num_values == datastore::node_view::max_num_values);
 
         check_tree(subnode, cur_depth);
-    }
+
+        num_subnodes++;
+    });
+
+    CHECK(num_subnodes == datastore::node_view::max_num_subnodes);
 }
 } // namespace
 
 TEST_CASE("Vault supports basic operations at its elements size limits")
 {
-    datastore::volume vol1(datastore::volume::priority_class::medium);
+    volume vol1(volume::priority_class::medium);
 
-    datastore::vault vault;
+    vault vault;
     CHECK(vault.root()->load_subnode_tree("vol", vol1.root()));
 
-    datastore::node_view* vol_root = vault.root()->open_subnode("vol");
+    std::shared_ptr<node_view> vol_root = vault.root()->open_subnode("vol");
     CHECK(vol_root != nullptr);
 
     init_tree(vol_root, 1);

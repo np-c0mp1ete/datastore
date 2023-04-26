@@ -104,7 +104,7 @@ class striped_hashmap
     typedef Key key_type;
     typedef Value mapped_type;
 
-    striped_hashmap(unsigned num_buckets = 257)
+    striped_hashmap(unsigned num_buckets = 13)
         : buckets_(num_buckets)
     {
         for (unsigned i = 0; i < num_buckets; ++i)
@@ -136,6 +136,7 @@ class striped_hashmap
         return bucket(key).value_for(key);
     }
 
+    // TODO: support r-values
     bool insert_with_limit_or_assign(Key const& key, Value const& value, size_t max_num_elements)
     {
         return bucket(key).insert_with_limit_or_assign(key, value, num_elements_, max_num_elements);

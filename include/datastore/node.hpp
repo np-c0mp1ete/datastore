@@ -46,8 +46,8 @@ using binary_blob_t = std::vector<uint8_t>;
 using value_type = std::variant<uint32_t, uint64_t, float, double, std::string, binary_blob_t, ref>;
 
 constexpr size_t max_value_name_size_bytes = 255;
-constexpr size_t max_str_value_size_bytes = 1ull * 1024;
-constexpr size_t max_bin_value_size_bytes = 1ull * 1024;
+constexpr size_t max_str_value_size_bytes = 255;
+constexpr size_t max_bin_value_size_bytes = 255;
 
 template <class T>
 constexpr auto to_underlying(T value) noexcept
@@ -118,8 +118,8 @@ class node final
     //friend std::ostream& operator<<(std::ostream& lhs, const node_view& rhs);
 
   public:
-    static constexpr size_t max_num_subnodes = 255;
-    static constexpr size_t max_num_values = 255;
+    static constexpr size_t max_num_subnodes = 10;
+    static constexpr size_t max_num_values = 10;
 
     node(const node& other) = delete;
     node(node&& other) noexcept;
@@ -242,4 +242,6 @@ bool node::set_value(const std::string& value_name, T&& new_value)
 
     return values_.insert_with_limit_or_assign(value_name, std::move(value), max_num_values);
 }
+
+std::ostream& operator<<(std::ostream& lhs, const node& rhs);
 } // namespace datastore

@@ -21,8 +21,8 @@ class node_view final : detail::node_observer
     friend std::ostream& operator<<(std::ostream& lhs, const node_view& rhs);
 
   public:
-    static constexpr size_t max_num_subnodes = 255;
-    static constexpr size_t max_num_values = 255;
+    static constexpr size_t max_num_subnodes = 10;
+    static constexpr size_t max_num_values = 10;
 
     node_view(const node_view& other) = delete;
 

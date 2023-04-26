@@ -1,6 +1,8 @@
 #include "datastore/node.hpp"
 #include "datastore/volume.hpp"
 
+#include <thread>
+
 void delete_while_iterate()
 {
     using namespace std::chrono_literals;
@@ -40,7 +42,7 @@ void delete_while_iterate()
             }
 
             // Delete one subnode
-            const bool success = vol.root()->delete_subnode_tree("2");
+            vol.root()->delete_subnode_tree("2");
             // CHECK(success);
 
             // Step 4: Notify the itarator that the subnode is deleted
