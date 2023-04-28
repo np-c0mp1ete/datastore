@@ -156,6 +156,26 @@ class striped_hashmap
         return num_deleted;
     }
 
+    void clear()
+    {
+        for (unsigned i = 0; i < buckets_.size(); ++i)
+        {
+            unique_mutex_lock lock(buckets_[i]->mutex);
+
+            num_elements_ = num_elements_ > buckets_[i]->data.size() ? num_elements_ - buckets_[i]->data.size() : 0;
+
+            size_t expected;
+            size_t desired;
+            do
+            {
+                expected = num_elements_.load(std::memory_order_relaxed);
+                desired = expected > buckets_[i]->data.size() ? expected - buckets_[i]->data.size() : 0;
+            } while (!num_elements_.compare_exchange_weak(expected, desired, std::memory_order_release));
+
+            buckets_[i]->data.clear();
+        }
+    }
+
     size_t size() const
     {
         return num_elements_;

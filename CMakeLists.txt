@@ -5,9 +5,12 @@ project(datastore CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-option(DATASTORE_ADDRESS_SANITIZER "Enable address sanitizer" ON)
-option(DATASTORE_UB_SANITIZER "Enable undefined behavior sanitizer" ON)
-option(DATASTORE_THREAD_SANITIZER "Enable thread sanitizer" ON)
+include(CMakeDependentOption)
+
+cmake_dependent_option(DATASTORE_ADDRESS_SANITIZER "Enable address sanitizer" ON "UNIX" OFF)
+cmake_dependent_option(DATASTORE_UB_SANITIZER "Enable undefined behavior sanitizer" ON "UNIX" OFF)
+cmake_dependent_option(DATASTORE_THREAD_SANITIZER "Enable thread sanitizer" ON "UNIX;NOT DATASTORE_ADDRESS_SANITIZER" OFF)
+cmake_dependent_option(DATASTORE_MEMORY_SANITIZER "Enable memory sanitizer" ON "UNIX;NOT DATASTORE_ADDRESS_SANITIZER" OFF)
 
 if(MSVC)
     # Use the highest warning level for Visual Studio.
@@ -56,10 +59,12 @@ else()
     # Generate debug information
     string(APPEND CMAKE_CXX_FLAGS " -g")
 
-    string(APPEND CMAKE_CXX_FLAGS " -pthread")
+    if (UNIX)
+        string(APPEND CMAKE_CXX_FLAGS " -pthread")
+    endif()
 
-    if (DATASTORE_ENABLE_ASAN)
-        string(APPEND CMAKE_CXX_FLAGS " -fsanitize=address")
+    if (DATASTORE_ADDRESS_SANITIZER)
+        string(APPEND CMAKE_CXX_FLAGS " -fsanitize=address -fno-omit-frame-pointer")
         string(APPEND CMAKE_EXE_LINKER_FLAGS " -fsanitize=address")
     endif()
 
@@ -71,6 +76,11 @@ else()
     if (DATASTORE_THREAD_SANITIZER)
         string(APPEND CMAKE_CXX_FLAGS " -fsanitize=thread")
         string(APPEND CMAKE_EXE_LINKER_FLAGS " -fsanitize=thread")
+    endif()
+
+    if (DATASTORE_MEMORY_SANITIZER)
+        string(APPEND CMAKE_CXX_FLAGS " -fsanitize=memory -fno-omit-frame-pointer")
+        string(APPEND CMAKE_EXE_LINKER_FLAGS " -fsanitize=memory")
     endif()
 endif()
 

@@ -42,7 +42,7 @@ node_view::node_view(const path_view& path, size_t depth) : depth_(depth), nodes
 
 node_view::node_view(node_view&& other) noexcept
     : path_(std::move(other.path_)), depth_(other.depth_),
-      subviews_(std::move(other.subviews_)), nodes_(std::move(other.nodes_))
+      subviews_(std::move(other.subviews_)), nodes_(std::move(other.nodes_)), expired_(other.expired_.load())
 {
     nodes_.for_each([&](const std::shared_ptr<node>& node) {
         node->register_observer(this);
@@ -86,6 +86,7 @@ node_view& node_view::operator=(node_view&& rhs) noexcept
     depth_ = rhs.depth_;
     subviews_ = std::move(rhs.subviews_);
     nodes_ = std::move(rhs.nodes_);
+    expired_ = rhs.expired_.load();
 
     nodes_.for_each([&](const std::shared_ptr<node>& node) {
         node->register_observer(this);
@@ -167,6 +168,9 @@ std::shared_ptr<node_view> node_view::open_subnode(path_view subnode_path) const
 std::shared_ptr<node_view> node_view::load_subnode_tree(path_view subview_name, const std::shared_ptr<node>& subnode)
 {
     if (!subview_name.valid() || subview_name.composite())
+        return nullptr;
+
+    if (!subnode)
         return nullptr;
 
     std::string target_subnode_name = subview_name.str();
@@ -325,6 +329,8 @@ void node_view::on_delete_subnode(const std::shared_ptr<node>& subnode)
     // TODO: it's incorrect to check node name, node_views might have a different name
     const std::string subnode_name = std::string(subnode->name());
     auto opt = subviews_.find(subnode_name);
+    if (!opt)
+        return;
     std::shared_ptr<node_view> subview = opt.value();
 
     subview->nodes_.remove_if([&](const std::shared_ptr<node>& node) {

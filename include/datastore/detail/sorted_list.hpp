@@ -71,11 +71,11 @@ public:
         while (node* const next = current->next.get())
         {
             std::unique_lock<std::mutex> next_lk(next->m);
-            lk.unlock();
             if (comp_(*new_node->data, *next->data))
             {
                 break;
             }
+            lk.unlock();
             current = next;
             lk = std::move(next_lk);
         }

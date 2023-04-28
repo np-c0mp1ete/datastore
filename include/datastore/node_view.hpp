@@ -123,7 +123,7 @@ class node_view final : detail::node_observer
     size_t depth_;
     striped_hashmap<std::string, std::shared_ptr<node_view>> subviews_;
     sorted_list<std::shared_ptr<node>, decltype(&detail::compare_nodes)> nodes_;
-    bool expired_ = false;
+    std::atomic_bool expired_ = false;
 };
 
 template <typename T>
