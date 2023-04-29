@@ -26,7 +26,10 @@ enum class endian
 std::optional<value_type> deserialize_u32(std::vector<uint8_t>& buffer, size_t& pos)
 {
     if (pos >= buffer.size() || buffer.size() - pos < sizeof(uint32_t))
+    {
+        DATASTORE_ASSERT(false);
         return std::nullopt;
+    }
 
     uint32_t value = *reinterpret_cast<uint32_t*>(buffer.data() + pos);
     pos += sizeof(uint32_t);
@@ -46,7 +49,10 @@ bool serialize_u32(const value_type& value, std::vector<uint8_t>& buffer)
 std::optional<value_type> deserialize_u64(std::vector<uint8_t>& buffer, size_t& pos)
 {
     if (pos >= buffer.size() || buffer.size() - pos < sizeof(uint64_t))
+    {
+        DATASTORE_ASSERT(false);
         return std::nullopt;
+    }
 
     uint64_t value = *reinterpret_cast<uint64_t*>(buffer.data() + pos);
     pos += sizeof(uint64_t);
@@ -242,7 +248,8 @@ std::optional<node> serializer::deserialize_node(volume::priority_t volume_prior
         if (!opt)
             return std::nullopt;
         value_type value = opt.value();
-        n.values_.insert_with_limit_or_assign(value_name, std::move(value), node::max_num_values);
+        attr a(value_name, std::move(value));
+        n.values_.insert_with_limit_or_assign(value_name, std::move(a), node::max_num_values);
     }
 
     DESERIALIZE_OPT(uint64_t, subnodes_count, deserialize_u64)
@@ -273,11 +280,10 @@ bool serializer::serialize_node(node& n, std::vector<uint8_t>& buffer)
     success = success && serialize_u64(static_cast<uint64_t>(0), buffer);
 
     uint64_t num_values = 0;
-    n.for_each_value([&](const std::pair<std::string, value_type>& kv_pair) {
-        auto& [value_name, value] = kv_pair;
-        success = success && serialize_str(value_name, buffer);
-        success = success && serialize_u64(static_cast<uint64_t>(value.index()), buffer);
-        success = success && std::get<2>(serializers[value.index()])(value, buffer);
+    n.for_each_value([&](const attr& a) {
+        success = success && serialize_str(std::string(a.name()), buffer);
+        success = success && serialize_u64(static_cast<uint64_t>(a.get_value_kind().value()), buffer);
+        success = success && std::get<2>(serializers[static_cast<uint64_t>(a.get_value_kind().value())])(a.value(), buffer);
         num_values++;
     });
     std::copy_n(reinterpret_cast<uint8_t*>(&num_values), sizeof(uint64_t), buffer.data() + values_size_pos);
@@ -287,8 +293,8 @@ bool serializer::serialize_node(node& n, std::vector<uint8_t>& buffer)
 
     // TODO: don't serialize deleted nodes
     uint64_t num_subnodes = 0;
-    n.for_each_subnode([&](const std::pair<std::string, std::shared_ptr<node>>& kv_pair) {
-        success = success && serialize_node(*kv_pair.second, buffer);
+    n.for_each_subnode([&](const std::shared_ptr<node>& subnode) {
+        success = success && serialize_node(*subnode, buffer);
         num_subnodes++;
     });
     std::copy_n(reinterpret_cast<uint8_t*>(&num_subnodes), sizeof(uint64_t), buffer.data() + subnodes_size_pos);

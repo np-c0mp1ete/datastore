@@ -18,6 +18,8 @@
 #define DATASTORE_ASSERT(expr) static_assert(true)
 #endif
 
+#define DATASTORE_UNUSED(x) (void)(x)
+
 namespace datastore
 {
 class node;
@@ -107,6 +109,40 @@ constexpr uint64_t operator""_u64(unsigned long long value)
 }
 } // namespace literals
 
+class attr
+{
+  public:
+    attr(std::string name, value_type value) : name_(std::move(name)), value_(std::move(value))
+    {
+    }
+
+    template <typename T, typename = std::enable_if_t<detail::allowed<T>::value>>
+    [[nodiscard]] std::optional<T> get_value() const
+    {
+        const T* value = std::get_if<T>(&value_);
+        return value ? std::make_optional(*value) : std::nullopt;
+    }
+
+    [[nodiscard]] std::optional<value_kind> get_value_kind() const
+    {
+        return static_cast<value_kind>(value_.index());
+    }
+
+    std::string_view name() const
+    {
+        return name_;
+    }
+
+    value_type value() const
+    {
+        return value_;
+    }
+
+  private:
+    std::string name_;
+    value_type value_;
+};
+
 class node final
 {
     friend class detail::serializer;
@@ -114,7 +150,7 @@ class node final
     friend class detail::node_observer;
     friend class node_view;
 
-    //friend std::ostream& operator<<(std::ostream& lhs, const node& rhs);
+    friend std::ostream& operator<<(std::ostream& lhs, const node& rhs);
     //friend std::ostream& operator<<(std::ostream& lhs, const node_view& rhs);
 
   public:
@@ -138,6 +174,7 @@ class node final
     // Deletes a subnode and any child subnodes recursively
     // The subnode can be several levels deep in the volume tree
     bool delete_subnode_tree(path_view subnode_name);
+    bool delete_subnode_tree();
 
     // Retrieves an array of strings that contains all the subnode names
     // std::unordered_set<std::string> get_subnode_names();
@@ -154,6 +191,7 @@ class node final
 
     // Deletes the specified value from this node
     size_t delete_value(const std::string& value_name);
+    void delete_values();
 
     // Retrieves the value associated with the specified name
     template <typename T, typename = std::enable_if_t<detail::allowed<T>::value>>
@@ -203,7 +241,7 @@ private:
     uint8_t volume_priority;
     // node* parent_;
     striped_hashmap<std::string, std::shared_ptr<node>> subnodes_;
-    striped_hashmap<std::string, value_type> values_;
+    striped_hashmap<std::string, attr> values_;
     sorted_list<detail::node_observer*> observers_;
     std::atomic_bool deleted_ = false;
     size_t depth_ = 0;
@@ -216,8 +254,7 @@ template <typename T, typename>
     if (!opt)
         return std::nullopt;
 
-    const T* value = std::get_if<T>(&opt.value());
-    return value ? std::make_optional(*value) : std::nullopt;
+    return opt->get_value<T>();
 }
 
 //TODO: cleanup data size conststraints code
@@ -240,8 +277,7 @@ bool node::set_value(const std::string& value_name, T&& new_value)
         return false;
     }
 
-    return values_.insert_with_limit_or_assign(value_name, std::move(value), max_num_values);
+    attr a(value_name, std::move(value));
+    return values_.insert_with_limit_or_assign(value_name, std::move(a), max_num_values);
 }
-
-std::ostream& operator<<(std::ostream& lhs, const node& rhs);
 } // namespace datastore

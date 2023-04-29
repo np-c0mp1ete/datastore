@@ -7,10 +7,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(CMakeDependentOption)
 
-cmake_dependent_option(DATASTORE_ADDRESS_SANITIZER "Enable address sanitizer" ON "UNIX" OFF)
-cmake_dependent_option(DATASTORE_UB_SANITIZER "Enable undefined behavior sanitizer" ON "UNIX" OFF)
+cmake_dependent_option(DATASTORE_ADDRESS_SANITIZER "Enable address sanitizer" OFF "UNIX" OFF)
+cmake_dependent_option(DATASTORE_UB_SANITIZER "Enable undefined behavior sanitizer" OFF "UNIX" OFF)
 cmake_dependent_option(DATASTORE_THREAD_SANITIZER "Enable thread sanitizer" ON "UNIX;NOT DATASTORE_ADDRESS_SANITIZER" OFF)
-cmake_dependent_option(DATASTORE_MEMORY_SANITIZER "Enable memory sanitizer" ON "UNIX;NOT DATASTORE_ADDRESS_SANITIZER" OFF)
+cmake_dependent_option(DATASTORE_MEMORY_SANITIZER "Enable memory sanitizer" ON 
+    "UNIX;NOT DATASTORE_ADDRESS_SANITIZER;NOT DATASTORE_THREAD_SANITIZER" OFF)
 
 if(MSVC)
     # Use the highest warning level for Visual Studio.

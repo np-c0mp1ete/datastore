@@ -40,7 +40,7 @@ class node_view final : detail::node_observer
 
     // Retrieves the specified subnode
     // The subnode can be several levels deep in the volume tree
-    std::shared_ptr<node_view> open_subnode(path_view subnode_path) const;
+    std::shared_ptr<node_view> open_subnode(path_view subview_path) const;
 
     // TODO: what if the same node is loaded twice: one time as root and another time as child?
     // TODO: check that the node was already loaded
@@ -55,6 +55,7 @@ class node_view final : detail::node_observer
     // The subnode can be several levels deep in the volume tree
     // Can't delete tree roots loaded using load_subnode_tree
     bool delete_subview_tree(path_view subview_name);
+    bool delete_subview_tree();
 
     // Retrieves an array of strings that contains all the subnode names
     // [[nodiscard]] std::unordered_set<std::string> get_subnode_names() const;
@@ -68,6 +69,7 @@ class node_view final : detail::node_observer
 
     // Deletes the specified value from this node
     size_t delete_value(const std::string& value_name);
+    void delete_values();
 
     // Retrieves the value associated with the specified name
     template <typename T>
@@ -95,16 +97,16 @@ class node_view final : detail::node_observer
     template <typename Function>
     void for_each_value(Function f) const
     {
-        std::unordered_map<std::string, value_type> values;
+        std::unordered_map<std::string, attr> values;
 
         nodes_.for_each([&](const std::shared_ptr<node>& node) {
-            node->for_each_value([&](const std::pair<std::string, value_type>& kv_pair) {
-                auto& [name, value] = kv_pair;
-                values.emplace(name, value);
+            node->for_each_value([&](const attr& a) {
+                values.emplace(a.name(), a);
             });
         });
 
-        std::for_each(values.begin(), values.end(), f);
+        for (const auto& [key, value] : values)
+            f(value);
     }
 
     std::string_view name();

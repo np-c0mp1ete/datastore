@@ -153,27 +153,23 @@ class striped_hashmap
         const size_t num_deleted = bucket(key).remove_mapping(key);
         if (num_deleted > 0)
             --num_elements_;
+
         return num_deleted;
     }
 
     void clear()
     {
+        std::vector<std::unique_lock<std::shared_mutex>> locks;
         for (unsigned i = 0; i < buckets_.size(); ++i)
         {
-            unique_mutex_lock lock(buckets_[i]->mutex);
+            locks.push_back(std::unique_lock<std::shared_mutex>(buckets_[i]->mutex));
+        }
 
-            num_elements_ = num_elements_ > buckets_[i]->data.size() ? num_elements_ - buckets_[i]->data.size() : 0;
-
-            size_t expected;
-            size_t desired;
-            do
-            {
-                expected = num_elements_.load(std::memory_order_relaxed);
-                desired = expected > buckets_[i]->data.size() ? expected - buckets_[i]->data.size() : 0;
-            } while (!num_elements_.compare_exchange_weak(expected, desired, std::memory_order_release));
-
+        for (unsigned i = 0; i < buckets_.size(); ++i)
+        {
             buckets_[i]->data.clear();
         }
+        num_elements_ = 0;
     }
 
     size_t size() const
@@ -206,9 +202,9 @@ class striped_hashmap
         {
             std::shared_lock<std::shared_mutex> lock(buckets_[i]->mutex);
 
-            for (auto it = buckets_[i]->data.begin(); it != buckets_[i]->data.end(); ++it)
+            for (auto it = buckets_[i]->data.cbegin(); it != buckets_[i]->data.cend(); ++it)
             {
-                f(*it);
+                f(it->second);
             }
         }
     }

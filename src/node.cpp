@@ -116,11 +116,14 @@ std::shared_ptr<node> node::open_subnode(path_view subnode_path) const
 
 void node::notify_on_delete_subnode_observers(const std::shared_ptr<node>& subnode) const
 {
-    subnode->for_each_subnode([&](const std::pair<std::string, std::shared_ptr<node>>& kv_pair) {
-        subnode->notify_on_delete_subnode_observers(kv_pair.second);
+    // Go bottom up the tree
+    subnode->for_each_subnode([&](const std::shared_ptr<node>& node) {
+        subnode->notify_on_delete_subnode_observers(node);
     });
 
-    observers_.for_each([&](detail::node_observer* observer) { observer->on_delete_subnode(subnode); });
+    observers_.for_each([&](detail::node_observer* observer) {
+        observer->on_delete_subnode(subnode);
+    });
 }
 
 bool node::delete_subnode_tree(path_view subnode_name)
@@ -139,39 +142,30 @@ bool node::delete_subnode_tree(path_view subnode_name)
 
     notify_on_delete_subnode_observers(subnode);
 
-    
-
-    // auto target_subnode = open_subnode(std::move(subnode_name));
-    // if (!target_subnode)
-    //     return 0;
-    //
-    // size_t num_deleted = 0;
-    // for (auto& [name, subnode] : target_subnode->subnodes_)
-    // {
-    //     num_deleted += target_subnode->delete_subnode_tree(name);
-    // }
-    //
-    // num_deleted++;
-    // target_subnode->deleted_ = true;
-    //
-    // for (auto observer : target_subnode->parent_->observers_)
-    // {
-    //     observer->on_delete_subnode(target_subnode.get());
-    // }
-
     return success;
 }
 
-// std::unordered_set<std::string> node::get_subnode_names()
+bool node::delete_subnode_tree()
+{
+    // notify_on_delete_subnode_observers() doesn't take subnodes_ locks internally
+    // So it's safe to call it already holding a lock in for_each()
+    // subnodes_.for_each([&](const std::pair<std::string, std::shared_ptr<node>>& kv_pair) {
+    //     // Entire observers hierarchy needs to be notified about the subnode tree deletion first
+    //     notify_on_delete_subnode_observers(kv_pair.second);
+    // });
+
+    subnodes_.clear();
+
+    return true;
+}
+
+// std::unordered_set<std::string> node::get_subnode_names() const
 // {
-//     // Copy strings to avoid scenarios when a subnode gets deleted
-//     // and the caller is left with a dangling pointer
 //     std::unordered_set<std::string> names;
-//     // names.reserve(subnodes_.size());
-//     // for (const auto& [name, subnode] : subnodes_)
-//     // {
-//     //     names.emplace(name);
-//     // }
+//     names.reserve(subnodes_.size());
+//     // subnodes_.for_each([&](const std::pair<std::string, std::shared_ptr<node>>& kv_pair) {
+//     //     names.emplace(kv_pair.first);
+//     // });
 //     return names;
 // }
 
@@ -180,6 +174,21 @@ size_t node::delete_value(const std::string& value_name)
     return values_.erase(value_name);
 }
 
+void node::delete_values()
+{
+    values_.clear();
+}
+
+// std::unordered_set<std::string> node::get_value_names() const
+// {
+//     std::unordered_set<std::string> names;
+//     names.reserve(values_.size());
+//     // values_.for_each([&](const std::pair<std::string, value_type>& kv_pair) {
+//     //     names.emplace(kv_pair.first);
+//     // });
+//     return names;
+// }
+
 std::optional<value_kind> node::get_value_kind(const std::string& value_name) const
 {
     const auto opt_value = values_.find(value_name);
@@ -187,7 +196,7 @@ std::optional<value_kind> node::get_value_kind(const std::string& value_name) co
     if (!opt_value)
         return std::nullopt;
 
-    return static_cast<value_kind>(opt_value->index());
+    return opt_value->get_value_kind();
 }
 
 std::string_view node::name()
@@ -233,13 +242,12 @@ std::ostream& operator<<(std::ostream& lhs, const node& rhs)
 {
     lhs << rhs.path() << std::endl;
 
-    rhs.for_each_value([&](const std::pair<std::string, value_type>& kv_pair) {
-        auto& [name, value] = kv_pair;
-        lhs << name << " = " << value << std::endl;
+    rhs.for_each_value([&](const attr& a) {
+        lhs << a.name() << " = " << a.value() << std::endl;
     });
 
-    rhs.for_each_subnode([&](const std::pair<std::string, std::shared_ptr<node>>& kv_pair) {
-        lhs << *kv_pair.second;
+    rhs.for_each_subnode([&](const std::shared_ptr<node>& subnode) {
+        lhs << subnode;
     });
 
     return lhs;
