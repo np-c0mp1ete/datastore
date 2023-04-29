@@ -32,6 +32,16 @@ target_link_libraries(load_test_volume
 )
 
 
+add_executable(stress_test_multithreaded
+    stress_test_multithreaded.cpp
+)
+
+target_link_libraries(stress_test_multithreaded
+    PRIVATE
+    datastore
+)
+
+
 add_executable(load_test_vault
     load_test_vault.cpp
 )

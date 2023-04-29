@@ -128,7 +128,7 @@ std::shared_ptr<node_view> node_view::create_subnode(path_view subnode_path)
 
     // on_create_subnode() won't create a subnode again in this case
     std::shared_ptr<node_view> subview(new node_view(subnode_path, depth_ + 1));
-    const auto [real_subview, inserted] = subviews_.insert_with_limit_if_not_exist(subnode_name, subview, max_num_subnodes);
+    const auto [real_subview, inserted] = subviews_.find_or_insert_with_limit(subnode_name, subview, max_num_subviews);
     if (!inserted)
         return nullptr;
     
@@ -174,6 +174,9 @@ std::shared_ptr<node_view> node_view::load_subnode_tree(path_view subview_name, 
     if (!subnode)
         return nullptr;
 
+    if (subnode->deleted_)
+        return nullptr;
+
     std::string target_subnode_name = subview_name.str();
 
     if (depth_ > vault::max_tree_depth)
@@ -182,7 +185,7 @@ std::shared_ptr<node_view> node_view::load_subnode_tree(path_view subview_name, 
     // Create a subview to hold the subnode
     std::shared_ptr<node_view> subview(new node_view(path_ + path_view::path_separator + target_subnode_name, depth_ + 1));
     const auto subview_inserted_pair =
-        subviews_.insert_with_limit_if_not_exist(target_subnode_name, subview, max_num_subnodes);
+        subviews_.find_or_insert_with_limit(target_subnode_name, subview, max_num_subviews);
     const auto [real_subview, inserted] = subview_inserted_pair;
     if (!inserted)
         return nullptr;
@@ -220,6 +223,16 @@ bool node_view::unload_subnode_tree(path_view subview_name)
     subview->expired_ = true;
 
     return subviews_.erase(subview_name.str()) > 0;
+}
+
+void node_view::unload_subnode_tree()
+{
+    subviews_.for_each([&](const std::shared_ptr<node_view>& subview) {
+        subview->unload_subnode_tree();
+        subview->expired_ = true;
+    });
+
+    subviews_.clear();
 }
 
 bool node_view::delete_subview_tree(path_view subview_name)
@@ -335,11 +348,12 @@ std::ostream& operator<<(std::ostream& lhs, const node_view& rhs)
 void node_view::on_create_subnode(const std::shared_ptr<node>& subnode)
 {
     std::shared_ptr<node_view> subview(new node_view(subnode->name(), depth_ + 1));
-    const auto [real_subview, inserted] = subviews_.insert_with_limit_if_not_exist(std::string(subnode->name()), subview, max_num_subnodes);
-    if (!inserted)
+    const auto [real_subview, success] = subviews_.find_or_insert_with_limit(std::string(subnode->name()), subview, max_num_subviews);
+    if (!success)
+    {
+        // Can be the case if too many subviews exist already
         return;
-
-    real_subview->expired_ = false;
+    }
 
     real_subview->nodes_.push(subnode);
 }

@@ -17,7 +17,7 @@ auto to_string(std::integer_sequence<size_t, Ints...>)
 
 // Cache stringified indices
 constexpr size_t max_idx =
-    std::max(node_view::max_num_subnodes, node_view::max_num_values);
+    std::max(node_view::max_num_subviews, node_view::max_num_values);
 const auto idx_str = to_string(std::make_index_sequence<max_idx>{});
 
 const std::string max_str = std::string(max_str_value_size_bytes, 'a');
@@ -28,7 +28,7 @@ void init_tree(const std::shared_ptr<node_view>& parent, size_t cur_depth = 0)
         return;
     cur_depth++;
 
-    for (size_t subnode_idx = 0; subnode_idx < node_view::max_num_subnodes; subnode_idx++)
+    for (size_t subnode_idx = 0; subnode_idx < node_view::max_num_subviews; subnode_idx++)
     {
         std::shared_ptr<node_view> subnode = parent->create_subnode(idx_str[subnode_idx]);
         CHECK(subnode != nullptr);
@@ -70,7 +70,7 @@ void check_tree(const std::shared_ptr<node_view>& parent, size_t cur_depth = 0)
         num_subnodes++;
     });
 
-    CHECK(num_subnodes == datastore::node_view::max_num_subnodes);
+    CHECK(num_subnodes == datastore::node_view::max_num_subviews);
 }
 } // namespace
 

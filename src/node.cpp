@@ -61,7 +61,7 @@ std::shared_ptr<node> node::create_subnode(path_view subnode_path)
     const std::string subnode_name = std::string(*subnode_path.front());
 
     std::shared_ptr<node> subnode(new node(subnode_name, path_ + path_view::path_separator + subnode_name, volume_priority, depth_ + 1));
-    const auto& subnode_success_pair = subnodes_.insert_with_limit_if_not_exist(subnode_name, subnode, max_num_subnodes);
+    const auto& subnode_success_pair = subnodes_.find_or_insert_with_limit(subnode_name, subnode, max_num_subnodes);
     const auto [real_subnode, success] = subnode_success_pair;
     if (!success)
         return nullptr;

@@ -20,8 +20,14 @@ class path_view
     path_view(T&& path) : path_(std::forward<T>(path))
     {
         //TODO: don't reparse if was parsed before
-        valid_ = parse(path);
+        valid_ = parse(path_);
     }
+
+    path_view(const path_view& path) = default;
+    path_view(path_view&& path) noexcept = default;
+
+    path_view& operator=(path_view const& other) = default;
+    path_view& operator=(path_view&& other) noexcept = default;
 
     path_view(std::nullptr_t) = delete;
 

@@ -143,7 +143,7 @@ class striped_hashmap
     }
 
     template <typename K, typename V>
-    std::pair<Value, bool> insert_with_limit_if_not_exist(K&& key, V&& value, size_t max_num_elements)
+    std::pair<Value, bool> find_or_insert_with_limit(K&& key, V&& value, size_t max_num_elements)
     {
         return bucket(key).insert_with_limit_if_not_exist(std::forward<K>(key), std::forward<V>(value), num_elements_, max_num_elements);
     }
@@ -198,6 +198,12 @@ class striped_hashmap
     template <typename Function>
     void for_each(Function f) const
     {
+        //     std::vector<std::unique_lock<std::shared_mutex>> locks;
+        //     for (unsigned i = 0; i < buckets_.size(); ++i)
+        //     {
+        //         locks.push_back(std::unique_lock<std::shared_mutex>(buckets_[i]->mutex));
+        //     }
+
         for (unsigned i = 0; i < buckets_.size(); ++i)
         {
             std::shared_lock<std::shared_mutex> lock(buckets_[i]->mutex);

@@ -21,7 +21,7 @@ class node_view final : detail::node_observer
     friend std::ostream& operator<<(std::ostream& lhs, const node_view& rhs);
 
   public:
-    static constexpr size_t max_num_subnodes = 10;
+    static constexpr size_t max_num_subviews = 10;
     static constexpr size_t max_num_values = 10;
 
     node_view(const node_view& other) = delete;
@@ -50,6 +50,7 @@ class node_view final : detail::node_observer
     // Unloads the specified subnode and its subnodes from the vault
     // This function removes a subnode from the vault but does not modify the volume containing the information.
     bool unload_subnode_tree(path_view subview_name);
+    void unload_subnode_tree();
 
     // Deletes a subnode and any child subnodes recursively
     // The subnode can be several levels deep in the volume tree
