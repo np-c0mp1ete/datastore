@@ -1,4 +1,5 @@
 #include <array>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <tuple>
@@ -31,15 +32,20 @@ std::optional<value_type> deserialize_u32(std::vector<uint8_t>& buffer, size_t& 
         return std::nullopt;
     }
 
-    uint32_t value = *reinterpret_cast<uint32_t*>(buffer.data() + pos);
+    uint32_t value;
+    memcpy(&value, buffer.data() + pos, sizeof(uint32_t));
     pos += sizeof(uint32_t);
+
     return value;
 }
 
 bool serialize_u32(const value_type& value, std::vector<uint8_t>& buffer)
 {
     if (!std::holds_alternative<uint32_t>(value))
+    {
+        DATASTORE_ASSERT(false);
         return false;
+    }
 
     const uint32_t u32 = std::get<uint32_t>(value);
     std::copy_n(reinterpret_cast<const uint8_t*>(&u32), sizeof(uint32_t), std::back_inserter(buffer));
@@ -54,15 +60,20 @@ std::optional<value_type> deserialize_u64(std::vector<uint8_t>& buffer, size_t& 
         return std::nullopt;
     }
 
-    uint64_t value = *reinterpret_cast<uint64_t*>(buffer.data() + pos);
+    uint64_t value;
+    memcpy(&value, buffer.data() + pos, sizeof(uint64_t));
     pos += sizeof(uint64_t);
+
     return value;
 }
 
 bool serialize_u64(const value_type& value, std::vector<uint8_t>& buffer)
 {
     if (!std::holds_alternative<uint64_t>(value))
+    {
+        DATASTORE_ASSERT(false);
         return false;
+    }
 
     const uint64_t u64 = std::get<uint64_t>(value);
     std::copy_n(reinterpret_cast<const uint8_t*>(&u64), sizeof(uint64_t), std::back_inserter(buffer));
@@ -72,17 +83,25 @@ bool serialize_u64(const value_type& value, std::vector<uint8_t>& buffer)
 std::optional<value_type> deserialize_f32(std::vector<uint8_t>& buffer, size_t& pos)
 {
     if (pos >= buffer.size() || buffer.size() - pos < sizeof(float))
+    {
+        DATASTORE_ASSERT(false);
         return std::nullopt;
+    }
 
-    float value = *reinterpret_cast<float*>(buffer.data() + pos);
+    float value;
+    memcpy(&value, buffer.data() + pos, sizeof(float));
     pos += sizeof(float);
+
     return value;
 }
 
 bool serialize_f32(const value_type& value, std::vector<uint8_t>& buffer)
 {
     if (!std::holds_alternative<float>(value))
+    {
+        DATASTORE_ASSERT(false);
         return false;
+    }
 
     const float f32 = std::get<float>(value);
     std::copy_n(reinterpret_cast<const uint8_t*>(&f32), sizeof(float), std::back_inserter(buffer));
@@ -92,17 +111,25 @@ bool serialize_f32(const value_type& value, std::vector<uint8_t>& buffer)
 std::optional<value_type> deserialize_f64(std::vector<uint8_t>& buffer, size_t& pos)
 {
     if (pos >= buffer.size() || buffer.size() - pos < sizeof(double))
+    {
+        DATASTORE_ASSERT(false);
         return std::nullopt;
+    }
 
-    double value = *reinterpret_cast<double*>(buffer.data() + pos);
+    double value;
+    memcpy(&value, buffer.data() + pos, sizeof(double));
     pos += sizeof(double);
+
     return value;
 }
 
 bool serialize_f64(const value_type& value, std::vector<uint8_t>& buffer)
 {
     if (!std::holds_alternative<double>(value))
+    {
+        DATASTORE_ASSERT(false);
         return false;
+    }
 
     const double f64 = std::get<double>(value);
     std::copy_n(reinterpret_cast<const uint8_t*>(&f64), sizeof(double), std::back_inserter(buffer));
@@ -112,15 +139,24 @@ bool serialize_f64(const value_type& value, std::vector<uint8_t>& buffer)
 std::optional<value_type> deserialize_str(std::vector<uint8_t>& buffer, size_t& pos)
 {
     if (pos >= buffer.size() || buffer.size() - pos < sizeof(uint64_t))
+    {
+        DATASTORE_ASSERT(false);
         return std::nullopt;
+    }
 
     const std::optional<value_type> opt = deserialize_u64(buffer, pos);
     if (!opt)
+    {
+        DATASTORE_ASSERT(false);
         return std::nullopt;
+    }
     const auto len = static_cast<size_t>(std::get<uint64_t>(opt.value()));
 
     if (pos >= buffer.size() || buffer.size() - pos < len)
+    {
+        DATASTORE_ASSERT(false);
         return std::nullopt;
+    }
 
     auto str = std::string(reinterpret_cast<char*>(buffer.data() + pos), len);
     pos += len;
@@ -131,7 +167,10 @@ std::optional<value_type> deserialize_str(std::vector<uint8_t>& buffer, size_t& 
 bool serialize_str(const value_type& value, std::vector<uint8_t>& buffer)
 {
     if (!std::holds_alternative<std::string>(value))
+    {
+        DATASTORE_ASSERT(false);
         return false;
+    }
 
     std::string s = std::get<std::string>(value);
 
@@ -146,15 +185,24 @@ bool serialize_str(const value_type& value, std::vector<uint8_t>& buffer)
 std::optional<value_type> deserialize_bin(std::vector<uint8_t>& buffer, size_t& pos)
 {
     if (pos >= buffer.size() || buffer.size() - pos < sizeof(uint64_t))
+    {
+        DATASTORE_ASSERT(false);
         return std::nullopt;
+    }
 
     const std::optional<value_type> opt = deserialize_u64(buffer, pos);
     if (!opt)
+    {
+        DATASTORE_ASSERT(false);
         return std::nullopt;
+    }
     const auto len = static_cast<size_t>(std::get<uint64_t>(opt.value()));
 
     if (pos >= buffer.size() || buffer.size() - pos < len)
+    {
+        DATASTORE_ASSERT(false);
         return std::nullopt;
+    }
 
     auto blob = binary_blob_t(buffer.data() + pos, buffer.data() + pos + len);
     pos += len;
@@ -165,7 +213,10 @@ std::optional<value_type> deserialize_bin(std::vector<uint8_t>& buffer, size_t& 
 bool serialize_bin(const value_type& value, std::vector<uint8_t>& buffer)
 {
     if (!std::holds_alternative<binary_blob_t>(value))
+    {
+        DATASTORE_ASSERT(false);
         return false;
+    }
 
     binary_blob_t blob = std::get<binary_blob_t>(value);
 
@@ -177,28 +228,6 @@ bool serialize_bin(const value_type& value, std::vector<uint8_t>& buffer)
     return success;
 }
 
-std::optional<value_type> deserialize_ref(std::vector<uint8_t>& buffer, size_t& pos)
-{
-    if (pos >= buffer.size() || buffer.size() - pos < sizeof(uint64_t))
-        return std::nullopt;
-
-    const std::optional<value_type> opt = deserialize_str(buffer, pos);
-    if (!opt)
-        return std::nullopt;
-    auto& path = std::get<std::string>(opt.value());
-
-    return ref{path};
-}
-
-bool serialize_ref(const value_type& value, std::vector<uint8_t>& buffer)
-{
-    if (!std::holds_alternative<ref>(value))
-        return false;
-
-    const ref& r = std::get<ref>(value);
-    return  serialize_str(r.path, buffer);
-}
-
 constexpr std::array serializers = {
     std::make_tuple(value_kind::u32, deserialize_u32, serialize_u32),
     std::make_tuple(value_kind::u64, deserialize_u64, serialize_u64),
@@ -206,7 +235,6 @@ constexpr std::array serializers = {
     std::make_tuple(value_kind::f64, deserialize_f64, serialize_f64),
     std::make_tuple(value_kind::str, deserialize_str, serialize_str),
     std::make_tuple(value_kind::bin, deserialize_bin, serialize_bin),
-    std::make_tuple(value_kind::ref, deserialize_ref, serialize_ref)
 };
 
 static_assert(std::get<value_kind>(serializers[0]) == value_kind::u32);
@@ -215,7 +243,6 @@ static_assert(std::get<value_kind>(serializers[2]) == value_kind::f32);
 static_assert(std::get<value_kind>(serializers[3]) == value_kind::f64);
 static_assert(std::get<value_kind>(serializers[4]) == value_kind::str);
 static_assert(std::get<value_kind>(serializers[5]) == value_kind::bin);
-static_assert(std::get<value_kind>(serializers[6]) == value_kind::ref);
 static_assert(serializers.size() == to_underlying(value_kind::_count));
 }
 

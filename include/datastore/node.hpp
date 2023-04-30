@@ -33,19 +33,12 @@ enum class value_kind : uint8_t
     f64,
     str,
     bin,
-    ref,
     _count
-};
-
-struct ref
-{
-    std::string path;
 };
 
 using binary_blob_t = std::vector<uint8_t>;
 
-//TODO: remove ref type
-using value_type = std::variant<uint32_t, uint64_t, float, double, std::string, binary_blob_t, ref>;
+using value_type = std::variant<uint32_t, uint64_t, float, double, std::string, binary_blob_t>;
 
 constexpr size_t max_value_name_size_bytes = 255;
 constexpr size_t max_str_value_size_bytes = 255;
@@ -63,7 +56,6 @@ static_assert(std::is_same_v<float, std::variant_alternative_t<to_underlying(val
 static_assert(std::is_same_v<double, std::variant_alternative_t<to_underlying(value_kind::f64), value_type>>);
 static_assert(std::is_same_v<std::string, std::variant_alternative_t<to_underlying(value_kind::str), value_type>>);
 static_assert(std::is_same_v<binary_blob_t, std::variant_alternative_t<to_underlying(value_kind::bin), value_type>>);
-static_assert(std::is_same_v<ref, std::variant_alternative_t<to_underlying(value_kind::ref), value_type>>);
 static_assert(std::variant_size_v<value_type> == to_underlying(value_kind::_count));
 
 std::ostream& operator<<(std::ostream& lhs, const value_type& rhs);

@@ -20,8 +20,8 @@ std::ostream& operator<<(std::ostream& lhs, const value_type& rhs)
         lhs << std::get<double>(rhs);
     if (kind == value_kind::str)
         lhs << std::get<std::string>(rhs);
-    if (kind == value_kind::ref)
-        lhs << std::get<ref>(rhs).path;
+    else
+        lhs << "<unknown_type>";
 
     return lhs;
 }
