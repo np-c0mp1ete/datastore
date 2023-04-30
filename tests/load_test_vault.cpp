@@ -49,17 +49,11 @@ void check_tree(const std::shared_ptr<node_view>& parent, size_t cur_depth = 0)
     cur_depth++;
 
     size_t num_subnodes = 0;
-    parent->for_each_subnode([&](const std::pair<std::string, std::shared_ptr<node_view>>& name_node_pair) {
-        auto& [subnode_name, _] = name_node_pair;
-
-        std::shared_ptr<node_view> subnode = parent->open_subnode(subnode_name);
-        CHECK(subnode != nullptr);
-
+    parent->for_each_subnode([&](const std::shared_ptr<node_view>& subnode) {
         size_t num_values = 0;
-        subnode->for_each_value([&](const std::pair<std::string, value_type>& name_value_pair) {
-            auto& [name, value] = name_value_pair;
-            CHECK(subnode->get_value_kind(name) == datastore::value_kind::str);
-            CHECK(subnode->get_value<std::string>(name) == max_str);
+        subnode->for_each_value([&](const attr& a) {
+            CHECK(a.get_value_kind() == datastore::value_kind::str);
+            CHECK(a.get_value<std::string>() == max_str);
             num_values++;
         });
 

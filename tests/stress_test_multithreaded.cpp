@@ -296,8 +296,8 @@ int main(int argc, char* argv[])
         node_view_actors[i] = std::thread([&] {
             while (!exit.load(std::memory_order_relaxed))
             {
-                action(vault1.root()->open_subnode("vol"), 0);
-                action(vault2.root()->open_subnode("vol"), 0);
+                action(vault1.root()->open_subnode("vol"), 1);
+                action(vault2.root()->open_subnode("vol"), 1);
             }
         });
     }
