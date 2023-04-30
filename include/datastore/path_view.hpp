@@ -138,4 +138,12 @@ class path_view
     std::list<std::string_view> elements_;
     bool valid_;
 };
+
+inline std::string operator+(const path_view& path, const std::string& str)
+{
+    std::string result = path.str();
+    if (!result.empty())
+        result += path_view::path_separator;
+    return result + str;
+}
 } // namespace datastore

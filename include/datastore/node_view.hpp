@@ -79,22 +79,20 @@ class node_view final : detail::node_observer
     template <typename Function>
     void for_each_value(Function f) const;
 
-    [[nodiscard]] std::string_view name();
+    [[nodiscard]] std::string_view name() const;
 
-    [[nodiscard]] std::string path() const;
+    [[nodiscard]] path_view path() const;
 
     [[nodiscard]] bool expired() const;
 
   private:
-    //TODO: depth can be inferred from the path
-    //TODO: path_view can be only 32 levels deep, full node path can be deeper
-    node_view(const path_view& full_path, size_t depth);
+    node_view(path_view full_path);
 
     void on_create_subnode(const std::shared_ptr<node>& subnode) override;
     void on_delete_subnode(const std::shared_ptr<node>& subnode) override;
 
-    std::string full_path_;
-    size_t depth_;
+    std::string full_path_str_;
+    path_view full_path_view_;
     striped_hashmap<std::string, std::shared_ptr<node_view>> subviews_;
     sorted_list<std::shared_ptr<node>, decltype(&detail::compare_nodes)> nodes_;
     std::atomic_bool expired_ = false;

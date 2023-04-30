@@ -49,7 +49,7 @@ TEST_CASE("Volume nodes can be unloaded from a node view", "[node_view]")
     CHECK(vault.root()->open_subnode("vol.1.2.3") == nullptr);
 
     CHECK(subnode->create_subnode("1") == nullptr);
-    CHECK(subnode->name().empty());
+    CHECK(subnode->expired());
 }
 
 TEST_CASE("Volume nodes can be created using the node_view API", "[node_view]")

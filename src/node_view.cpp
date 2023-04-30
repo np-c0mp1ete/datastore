@@ -16,19 +16,21 @@ bool compare_nodes(const std::shared_ptr<node>& n1, const std::shared_ptr<node>&
 
 } // namespace detail
 
-node_view::node_view(const path_view& full_path, size_t depth) : depth_(depth), nodes_(&detail::compare_nodes)
+node_view::node_view(path_view full_path)
+    : full_path_str_(full_path.str()), full_path_view_(full_path_str_), nodes_(&detail::compare_nodes)
 {
-    if (!full_path.valid())
-        return;
-
-    full_path_ = full_path.str();
+    if (!full_path_view_.valid())
+        expired_ = true;
 }
 
 node_view::node_view(node_view&& other) noexcept
-    : full_path_(std::move(other.full_path_)), depth_(other.depth_),
-      subviews_(std::move(other.subviews_)), nodes_(std::move(other.nodes_)), expired_(other.expired_.load())
+    : full_path_str_(std::move(other.full_path_str_)),
+      full_path_view_(full_path_str_),
+      subviews_(std::move(other.subviews_)),
+      nodes_(std::move(other.nodes_)),
+      expired_(other.expired_.load())
 {
-    nodes_.for_each([&](const std::shared_ptr<node>& node) {
+    other.nodes_.for_each([&](const std::shared_ptr<node>& node) {
         node->register_observer(this);
     });
 }
@@ -42,13 +44,13 @@ node_view::~node_view() noexcept
 
 node_view& node_view::operator=(node_view&& rhs) noexcept
 {
-    full_path_ = std::move(rhs.full_path_);
-    depth_ = rhs.depth_;
+    full_path_str_ = std::move(rhs.full_path_str_);
+    full_path_view_ = path_view(full_path_str_);
     subviews_ = std::move(rhs.subviews_);
     nodes_ = std::move(rhs.nodes_);
     expired_ = rhs.expired_.load();
 
-    nodes_.for_each([&](const std::shared_ptr<node>& node) {
+    rhs.nodes_.for_each([&](const std::shared_ptr<node>& node) {
         node->register_observer(this);
     });
 
@@ -63,15 +65,15 @@ std::shared_ptr<node_view> node_view::create_subnode(path_view subnode_path)
     if (expired_)
         return nullptr;
 
-    if (depth_ > vault::max_tree_depth)
+    // Can't go any deeper
+    if (full_path_view_.size() >= vault::max_tree_depth)
         return nullptr;
 
     const std::string subnode_name = std::string(*subnode_path.front());
 
     // some subviews on the path might not have a node attached
     // root subview never has a node
-    std::optional<std::shared_ptr<node_view>> opt = subviews_.find(subnode_name);
-    if (opt)
+    if (std::optional<std::shared_ptr<node_view>> opt = subviews_.find(subnode_name))
     {
         if (!subnode_path.composite())
             return opt.value();
@@ -89,17 +91,14 @@ std::shared_ptr<node_view> node_view::create_subnode(path_view subnode_path)
     if (!subnode)
         return nullptr;
 
-    // on_create_subnode() won't create a subnode again in this case
-    std::shared_ptr<node_view> subview(new node_view(subnode_path, depth_ + 1));
-    const auto [real_subview, inserted] = subviews_.find_or_insert_with_limit(subnode_name, subview, max_num_subviews);
-    if (!inserted)
+    const auto [subview, success] = subviews_.find_or_insert_with_limit(
+        subnode_name, new node_view(full_path_view_ + subnode_name), max_num_subviews);
+    if (!success)
         return nullptr;
-    
-    // real_subview->expired_ = false;
-    //
-    // real_subview->nodes_.push(subnode);
 
-    return real_subview;
+    subview->nodes_.push(subnode);
+
+    return subview;
 }
 
 std::shared_ptr<node_view> node_view::open_subnode(path_view subview_path) const
@@ -146,16 +145,15 @@ std::shared_ptr<node_view> node_view::load_subnode_tree(path_view subview_name, 
     if (subnode->deleted_)
         return nullptr;
 
-    std::string target_subnode_name = subview_name.str();
-
-    if (depth_ > vault::max_tree_depth)
+    if (full_path_view_.size() >= vault::max_tree_depth)
         return nullptr;
 
+    std::string name = subview_name.str();
+
     // Create a subview to hold the subnode
-    std::shared_ptr<node_view> subview(new node_view(full_path_ + path_view::path_separator + target_subnode_name, depth_ + 1));
-    const auto subview_inserted_pair =
-        subviews_.find_or_insert_with_limit(target_subnode_name, subview, max_num_subviews);
-    const auto [real_subview, inserted] = subview_inserted_pair;
+    const auto subview_inserted_pair = subviews_.find_or_insert_with_limit(
+        name, new node_view(full_path_view_ + name), max_num_subviews);
+    const auto [subview, inserted] = subview_inserted_pair;
     if (!inserted)
         return nullptr;
 
@@ -170,14 +168,14 @@ std::shared_ptr<node_view> node_view::load_subnode_tree(path_view subview_name, 
     {
         // Undo subview creation
         // TODO: add tests for this (and use cpp coverage to find similar code paths)
-        subviews_.erase(target_subnode_name);
+        subviews_.erase(name);
         return nullptr;
     }
 
-    real_subview->nodes_.push(subnode);
-    subnode->register_observer(real_subview.get());
+    subview->nodes_.push(subnode);
+    subnode->register_observer(subview.get());
 
-    return real_subview;
+    return subview;
 }
 
 bool node_view::unload_subnode_tree(path_view subview_name)
@@ -188,11 +186,16 @@ bool node_view::unload_subnode_tree(path_view subview_name)
     if (expired_)
         return false;
 
-    const std::shared_ptr<node_view>& subview = open_subnode(subview_name.str());
+    const std::shared_ptr<node_view>& subview = open_subnode(subview_name);
     if (!subview)
         return false;
 
+    subview->unload_subnode_tree();
+
     subview->expired_ = true;
+    subview->nodes_.for_each([&](const std::shared_ptr<node>& node) {
+        node->unregister_observer(subview.get());
+    });
 
     return subviews_.erase(subview_name.str()) > 0;
 }
@@ -204,7 +207,11 @@ void node_view::unload_subnode_tree()
 
     subviews_.for_each([&](const std::shared_ptr<node_view>& subview) {
         subview->unload_subnode_tree();
+
         subview->expired_ = true;
+        subview->nodes_.for_each([&](const std::shared_ptr<node>& node) {
+            node->unregister_observer(subview.get());
+        });
     });
 
     subviews_.clear();
@@ -285,31 +292,24 @@ std::optional<value_kind> node_view::get_value_kind(const std::string& value_nam
     return kind;
 }
 
-std::string_view node_view::name()
+std::string_view node_view::name() const
 {
-    if (expired_)
-        return "";
-
-    //TODO: unnecessary validation
-    return path_view(full_path_).back().value();
+    return *full_path_view_.back();
 }
 
-[[nodiscard]] std::string node_view::path() const
+path_view node_view::path() const
 {
-    if (expired_)
-        return "";
-
-    return full_path_;
+    return full_path_view_;
 }
 
-[[nodiscard]] bool node_view::expired() const
+bool node_view::expired() const
 {
     return expired_;
 }
 
 std::ostream& operator<<(std::ostream& lhs, const node_view& rhs)
 {
-    lhs << rhs.path();
+    lhs << rhs.path().str();
 
     if (rhs.expired())
         lhs << " (expired)";
@@ -317,7 +317,7 @@ std::ostream& operator<<(std::ostream& lhs, const node_view& rhs)
 
     rhs.nodes_.for_each([&](const std::shared_ptr<node>& node) {
         node->for_each_value([&](const attr& a) {
-            lhs << "-> [" << static_cast<size_t>(node->priority()) << "] " << a.name() << "@" << node->path() << " = "
+            lhs << "-> [" << static_cast<size_t>(node->priority()) << "] " << a.name() << "@" << node->path().str() << " = "
                 << a.value() << std::endl;
         });
     });
@@ -331,17 +331,20 @@ std::ostream& operator<<(std::ostream& lhs, const node_view& rhs)
 
 void node_view::on_create_subnode(const std::shared_ptr<node>& subnode)
 {
-    std::shared_ptr<node_view> subview(new node_view(subnode->name(), depth_ + 1));
-    const auto [real_subview, success] = subviews_.find_or_insert_with_limit(std::string(subnode->name()), subview, max_num_subviews);
     if (expired_)
         return;
+
+    std::string subnode_name = std::string(subnode->name());
+
+    const auto [subview, success] =
+        subviews_.find_or_insert_with_limit(subnode_name, new node_view(full_path_view_ + subnode_name), max_num_subviews);
     if (!success)
     {
         // Too many subviews exist already
         return;
     }
 
-    real_subview->nodes_.push(subnode);
+    subview->nodes_.push(subnode);
 }
 
 void node_view::on_delete_subnode(const std::shared_ptr<node>& subnode)
@@ -351,10 +354,10 @@ void node_view::on_delete_subnode(const std::shared_ptr<node>& subnode)
 
     // TODO: it's incorrect to check node name, node_views might have a different name
     const std::string subnode_name = std::string(subnode->name());
-    auto opt = subviews_.find(subnode_name);
+    const auto opt = subviews_.find(subnode_name);
     if (!opt)
         return;
-    std::shared_ptr<node_view> subview = opt.value();
+    const std::shared_ptr<node_view>& subview = opt.value();
 
     subview->nodes_.remove_if([&](const std::shared_ptr<node>& node) {
         return node == subnode;

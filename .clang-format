@@ -1,4 +1,5 @@
 BasedOnStyle: Microsoft
 AllowShortLambdasOnASingleLine: Empty
 AlwaysBreakTemplateDeclarations: Yes
+PackConstructorInitializers: Never
 PointerAlignment: Left

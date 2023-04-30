@@ -15,9 +15,9 @@ namespace detail
 class serializer final
 {
   public:
-    std::optional<node> deserialize_node(uint8_t volume_priority, const std::string& path, size_t cur_depth,
+    std::optional<node> deserialize_node(path_view path, uint8_t volume_priority,
                                          std::vector<uint8_t>& buffer, size_t& pos);
-    bool serialize_node(node& n, std::vector<uint8_t>& buffer);
+    bool serialize_node(const node& n, std::vector<uint8_t>& buffer);
 
     std::optional<volume> deserialize_volume(std::vector<uint8_t>& buffer);
     bool serialize_volume(volume& vol, std::vector<uint8_t>& buffer);
@@ -46,7 +46,7 @@ class volume final
 
     static const inline std::vector<uint8_t> signature = {'=', 'V', 'O', 'L'};
 
-    constexpr static size_t max_tree_depth = 5;
+    constexpr static size_t max_tree_depth = 6;
 
     volume(priority_t priority);
 

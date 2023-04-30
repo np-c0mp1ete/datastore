@@ -24,7 +24,7 @@ enum class endian
 #endif
 };
 
-std::optional<value_type> deserialize_u32(std::vector<uint8_t>& buffer, size_t& pos)
+std::optional<value_type> deserialize_u32(const std::vector<uint8_t>& buffer, size_t& pos)
 {
     if (pos >= buffer.size() || buffer.size() - pos < sizeof(uint32_t))
     {
@@ -52,7 +52,7 @@ bool serialize_u32(const value_type& value, std::vector<uint8_t>& buffer)
     return true;
 }
 
-std::optional<value_type> deserialize_u64(std::vector<uint8_t>& buffer, size_t& pos)
+std::optional<value_type> deserialize_u64(const std::vector<uint8_t>& buffer, size_t& pos)
 {
     if (pos >= buffer.size() || buffer.size() - pos < sizeof(uint64_t))
     {
@@ -80,7 +80,7 @@ bool serialize_u64(const value_type& value, std::vector<uint8_t>& buffer)
     return true;
 }
 
-std::optional<value_type> deserialize_f32(std::vector<uint8_t>& buffer, size_t& pos)
+std::optional<value_type> deserialize_f32(const std::vector<uint8_t>& buffer, size_t& pos)
 {
     if (pos >= buffer.size() || buffer.size() - pos < sizeof(float))
     {
@@ -108,7 +108,7 @@ bool serialize_f32(const value_type& value, std::vector<uint8_t>& buffer)
     return true;
 }
 
-std::optional<value_type> deserialize_f64(std::vector<uint8_t>& buffer, size_t& pos)
+std::optional<value_type> deserialize_f64(const std::vector<uint8_t>& buffer, size_t& pos)
 {
     if (pos >= buffer.size() || buffer.size() - pos < sizeof(double))
     {
@@ -136,7 +136,7 @@ bool serialize_f64(const value_type& value, std::vector<uint8_t>& buffer)
     return true;
 }
 
-std::optional<value_type> deserialize_str(std::vector<uint8_t>& buffer, size_t& pos)
+std::optional<value_type> deserialize_str(const std::vector<uint8_t>& buffer, size_t& pos)
 {
     if (pos >= buffer.size() || buffer.size() - pos < sizeof(uint64_t))
     {
@@ -158,7 +158,7 @@ std::optional<value_type> deserialize_str(std::vector<uint8_t>& buffer, size_t& 
         return std::nullopt;
     }
 
-    auto str = std::string(reinterpret_cast<char*>(buffer.data() + pos), len);
+    auto str = std::string(reinterpret_cast<const char*>(buffer.data() + pos), len);
     pos += len;
 
     return str;
@@ -182,7 +182,7 @@ bool serialize_str(const value_type& value, std::vector<uint8_t>& buffer)
     return success;
 }
 
-std::optional<value_type> deserialize_bin(std::vector<uint8_t>& buffer, size_t& pos)
+std::optional<value_type> deserialize_bin(const std::vector<uint8_t>& buffer, size_t& pos)
 {
     if (pos >= buffer.size() || buffer.size() - pos < sizeof(uint64_t))
     {
@@ -254,16 +254,14 @@ namespace detail
         return std::nullopt;                                                                                           \
     auto var = std::get<type>(opt.value());
 
-std::optional<node> serializer::deserialize_node(volume::priority_t volume_priority, const std::string& path, size_t cur_depth, std::vector<uint8_t>& buffer, size_t& pos)
+std::optional<node> serializer::deserialize_node(path_view path, volume::priority_t volume_priority,
+                                                 std::vector<uint8_t>& buffer, size_t& pos)
 {
     std::optional<value_type> opt;
 
     DESERIALIZE_OPT(std::string, name, deserialize_str)
 
-    std::string full_path = path;
-    if (!full_path.empty())
-        full_path += path_view::path_separator;
-    node n(name, full_path + name, volume_priority, cur_depth);
+    node n(path + name, volume_priority);
 
     DESERIALIZE_OPT(uint64_t, values_count, deserialize_u64)
     for (size_t i = 0; i < values_count; ++i)
@@ -282,7 +280,7 @@ std::optional<node> serializer::deserialize_node(volume::priority_t volume_prior
     DESERIALIZE_OPT(uint64_t, subnodes_count, deserialize_u64)
     for (size_t i = 0; i < subnodes_count; ++i)
     {
-        std::optional<node> child = deserialize_node(volume_priority, n.path(), cur_depth + 1, buffer, pos);
+        std::optional<node> child = deserialize_node(n.path(), volume_priority, buffer, pos);
         if (!child)
             return std::nullopt;
 
@@ -297,11 +295,11 @@ std::optional<node> serializer::deserialize_node(volume::priority_t volume_prior
     return n;
 }
 
-bool serializer::serialize_node(node& n, std::vector<uint8_t>& buffer)
+bool serializer::serialize_node(const node& n, std::vector<uint8_t>& buffer)
 {
     bool success = true;
 
-    success = success && serialize_str(n.name_, buffer);
+    success = success && serialize_str(std::string(n.name()), buffer);
 
     const size_t values_size_pos = buffer.size();
     success = success && serialize_u64(static_cast<uint64_t>(0), buffer);
@@ -318,9 +316,10 @@ bool serializer::serialize_node(node& n, std::vector<uint8_t>& buffer)
     const size_t subnodes_size_pos = buffer.size();
     success = success && serialize_u64(static_cast<uint64_t>(0), buffer);
 
-    // TODO: don't serialize deleted nodes
     uint64_t num_subnodes = 0;
     n.for_each_subnode([&](const std::shared_ptr<node>& subnode) {
+        if (subnode->deleted())
+            return;
         success = success && serialize_node(*subnode, buffer);
         num_subnodes++;
     });
@@ -346,7 +345,7 @@ std::optional<volume> serializer::deserialize_volume(std::vector<uint8_t>& buffe
 
     volume vol(static_cast<volume::priority_t>(priority));
 
-    std::optional<node> root_opt = deserialize_node(static_cast<volume::priority_t>(priority), "", 0, buffer, pos);
+    std::optional<node> root_opt = deserialize_node("", static_cast<volume::priority_t>(priority), buffer, pos);
     if (!root_opt)
         return std::nullopt;
     vol.root_ = std::make_shared<node>(std::move(root_opt.value()));
@@ -357,7 +356,6 @@ std::optional<volume> serializer::deserialize_volume(std::vector<uint8_t>& buffe
     return vol;
 }
 
-// TODO: use ostream instead of buffer. use overloaded operator <<?
 bool serializer::serialize_volume(volume& vol, std::vector<uint8_t>& buffer)
 {
     bool success = true;
@@ -371,27 +369,9 @@ bool serializer::serialize_volume(volume& vol, std::vector<uint8_t>& buffer)
 }
 }
 
-
-
-
-volume::volume(priority_t priority) : priority_(priority), root_(new node("root", "root", priority, 0))
+volume::volume(priority_t priority) : priority_(priority), root_(new node("root", priority))
 {
 }
-
-// [[nodiscard]] volume::volume(volume&& other) noexcept : priority_(other.priority_), root_(std::move(other.root_))
-// {
-//     // root_.set_volume(this);
-// }
-
-// volume& volume::operator=(volume&& rhs) noexcept
-// {
-//     priority_ = rhs.priority_;
-//     root_ = std::move(rhs.root_);
-//
-//     // root_.set_volume(this);
-//
-//     return *this;
-// }
 
 bool volume::save(const std::filesystem::path& filepath)
 {

@@ -28,16 +28,15 @@ const std::string max_str = std::string(max_str_value_size_bytes, 'a');
 volume vol1(volume::priority_class::medium);
 volume vol2(volume::priority_class::medium);
 
-void node_create_tree(const std::shared_ptr<node>& parent, size_t cur_depth = 0)
+void node_create_tree(const std::shared_ptr<node>& parent, size_t cur_depth = 1)
 {
     if (cur_depth >= volume::max_tree_depth)
         return;
-    cur_depth++;
 
     for (size_t subnode_idx = 0; subnode_idx < node::max_num_subnodes; subnode_idx++)
     {
         std::shared_ptr<node> subnode = parent->create_subnode(idx_str[subnode_idx]);
-        node_create_tree(subnode, cur_depth);
+        node_create_tree(subnode, cur_depth + 1);
     }
 
     for (size_t value_idx = 0; value_idx < node::max_num_values; value_idx++)
@@ -46,11 +45,10 @@ void node_create_tree(const std::shared_ptr<node>& parent, size_t cur_depth = 0)
     }
 }
 
-void node_view_create_tree(const std::shared_ptr<node_view>& parent, size_t cur_depth = 0)
+void node_view_create_tree(const std::shared_ptr<node_view>& parent, size_t cur_depth = 1)
 {
     if (cur_depth >= vault::max_tree_depth)
         return;
-    cur_depth++;
 
     for (size_t subnode_idx = 0; subnode_idx < node_view::max_num_subviews; subnode_idx++)
     {
@@ -60,7 +58,7 @@ void node_view_create_tree(const std::shared_ptr<node_view>& parent, size_t cur_
         if (!subnode)
             continue;
 
-        node_view_create_tree(subnode, cur_depth);
+        node_view_create_tree(subnode, cur_depth + 1);
     }
 
     for (size_t value_idx = 0; value_idx < node_view::max_num_values; value_idx++)
@@ -69,18 +67,17 @@ void node_view_create_tree(const std::shared_ptr<node_view>& parent, size_t cur_
     }
 }
 
-void node_get_tree(const std::shared_ptr<node>& parent, size_t cur_depth = 0)
+void node_get_tree(const std::shared_ptr<node>& parent, size_t cur_depth = 1)
 {
     if (cur_depth >= volume::max_tree_depth)
         return;
-    cur_depth++;
 
     for (size_t subnode_idx = 0; subnode_idx < node::max_num_subnodes; subnode_idx++)
     {
         const std::shared_ptr<node> subnode = parent->open_subnode(idx_str[subnode_idx]);
         if (!subnode)
             continue;
-        node_get_tree(subnode, cur_depth);
+        node_get_tree(subnode, cur_depth + 1);
     }
 
     for (size_t value_idx = 0; value_idx < node::max_num_values; value_idx++)
@@ -96,7 +93,7 @@ void node_get_tree(const std::shared_ptr<node>& parent, size_t cur_depth = 0)
             DATASTORE_UNUSED(*a.get_value<std::string>());
         });
 
-        node_get_tree(subnode, cur_depth);
+        node_get_tree(subnode, cur_depth + 1);
     });
 
     parent->for_each_value([&](const attr& a) {
@@ -105,18 +102,17 @@ void node_get_tree(const std::shared_ptr<node>& parent, size_t cur_depth = 0)
     });
 }
 
-void node_view_get_tree(const std::shared_ptr<node_view>& parent, size_t cur_depth = 0)
+void node_view_get_tree(const std::shared_ptr<node_view>& parent, size_t cur_depth = 1)
 {
     if (cur_depth >= vault::max_tree_depth)
         return;
-    cur_depth++;
 
     for (size_t subnode_idx = 0; subnode_idx < node_view::max_num_subviews; subnode_idx++)
     {
         const std::shared_ptr<node_view> subnode = parent->open_subnode(idx_str[subnode_idx]);
         if (!subnode)
             continue;
-        node_view_get_tree(subnode, cur_depth);
+        node_view_get_tree(subnode, cur_depth + 1);
     }
 
     for (size_t value_idx = 0; value_idx < node_view::max_num_values; value_idx++)
@@ -135,7 +131,7 @@ void node_view_get_tree(const std::shared_ptr<node_view>& parent, size_t cur_dep
         //     DATASTORE_UNUSED(*a.get_value<std::string>());
         // });
 
-        node_view_get_tree(subnode, cur_depth);
+        node_view_get_tree(subnode, cur_depth + 1);
     });
 
     parent->for_each_value([&](const attr& a) {
@@ -144,18 +140,17 @@ void node_view_get_tree(const std::shared_ptr<node_view>& parent, size_t cur_dep
     });
 }
 
-void node_delete_tree(const std::shared_ptr<node>& parent, size_t cur_depth = 0)
+void node_delete_tree(const std::shared_ptr<node>& parent, size_t cur_depth = 1)
 {
     if (cur_depth >= volume::max_tree_depth)
         return;
-    cur_depth++;
 
     for (size_t subnode_idx = 0; subnode_idx < node::max_num_subnodes; subnode_idx++)
     {
         const std::shared_ptr<node> subnode = parent->open_subnode(idx_str[subnode_idx]);
         if (!subnode)
             continue;
-        node_delete_tree(subnode, cur_depth);
+        node_delete_tree(subnode, cur_depth + 1);
 
         parent->delete_subnode_tree(idx_str[subnode_idx]);
     }
@@ -167,7 +162,7 @@ void node_delete_tree(const std::shared_ptr<node>& parent, size_t cur_depth = 0)
     }
 
     parent->for_each_subnode([&](const std::shared_ptr<node>& subnode) {
-        node_delete_tree(subnode, cur_depth);
+        node_delete_tree(subnode, cur_depth + 1);
 
         subnode->delete_values();
     });
@@ -176,18 +171,17 @@ void node_delete_tree(const std::shared_ptr<node>& parent, size_t cur_depth = 0)
     parent->delete_values();
 }
 
-void node_view_delete_tree(const std::shared_ptr<node_view>& parent, size_t cur_depth = 0)
+void node_view_delete_tree(const std::shared_ptr<node_view>& parent, size_t cur_depth = 1)
 {
     if (cur_depth >= vault::max_tree_depth)
         return;
-    cur_depth++;
 
     for (size_t subnode_idx = 0; subnode_idx < node_view::max_num_subviews; subnode_idx++)
     {
         const std::shared_ptr<node_view> subnode = parent->open_subnode(idx_str[subnode_idx]);
         if (!subnode)
             continue;
-        node_view_delete_tree(subnode, cur_depth);
+        node_view_delete_tree(subnode, cur_depth + 1);
 
         parent->delete_subview_tree(idx_str[subnode_idx]);
     }
@@ -199,7 +193,7 @@ void node_view_delete_tree(const std::shared_ptr<node_view>& parent, size_t cur_
     }
 
     parent->for_each_subnode([&](const std::shared_ptr<node_view>& subnode) {
-        node_view_delete_tree(subnode, cur_depth);
+        node_view_delete_tree(subnode, cur_depth + 1);
 
         subnode->delete_values();
     });
@@ -208,11 +202,10 @@ void node_view_delete_tree(const std::shared_ptr<node_view>& parent, size_t cur_
     parent->delete_values();
 }
 
-void node_view_load_subnode(const std::shared_ptr<node_view>& parent, size_t cur_depth = 0)
+void node_view_load_subnode(const std::shared_ptr<node_view>& parent, size_t cur_depth = 1)
 {
     if (cur_depth >= vault::max_tree_depth)
         return;
-    cur_depth++;
 
     for (size_t subnode_idx = 0; subnode_idx < node_view::max_num_subviews; subnode_idx++)
     {
@@ -220,22 +213,21 @@ void node_view_load_subnode(const std::shared_ptr<node_view>& parent, size_t cur
         parent->load_subnode_tree(idx_str[subnode_idx], vol2.root());
         if (!subnode)
             continue;
-        node_view_load_subnode(subnode, cur_depth);
+        node_view_load_subnode(subnode, cur_depth + 1);
     }
 }
 
-void node_view_unload_subnode(const std::shared_ptr<node_view>& parent, size_t cur_depth = 0)
+void node_view_unload_subnode(const std::shared_ptr<node_view>& parent, size_t cur_depth = 1)
 {
     if (cur_depth >= vault::max_tree_depth)
         return;
-    cur_depth++;
 
     for (size_t subnode_idx = 0; subnode_idx < node_view::max_num_subviews; subnode_idx++)
     {
         const std::shared_ptr<node_view> subnode = parent->open_subnode(idx_str[subnode_idx]);
         if (!subnode)
             continue;
-        node_view_unload_subnode(subnode, cur_depth);
+        node_view_unload_subnode(subnode, cur_depth + 1);
 
         parent->unload_subnode_tree(idx_str[subnode_idx]);
     }
@@ -290,8 +282,8 @@ int main(int argc, char* argv[])
         node_actors[i] = std::thread([&] {
             while (!exit.load(std::memory_order_relaxed))
             {
-                action(vol1.root(), 0);
-                action(vol2.root(), 0);
+                action(vol1.root(), 1);
+                action(vol2.root(), 1);
             }
         });
     }
@@ -302,8 +294,8 @@ int main(int argc, char* argv[])
         node_view_actors[i] = std::thread([&] {
             while (!exit.load(std::memory_order_relaxed))
             {
-                action(vault1.root()->open_subnode("vol"), 1);
-                action(vault2.root()->open_subnode("vol"), 1);
+                action(vault1.root()->open_subnode("vol"), 2);
+                action(vault2.root()->open_subnode("vol"), 2);
             }
         });
     }

@@ -101,7 +101,7 @@ constexpr uint64_t operator""_u64(unsigned long long value)
 }
 } // namespace literals
 
-class attr
+class attr final
 {
   public:
     attr(std::string name, value_type value) : name_(std::move(name)), value_(std::move(value))
@@ -195,30 +195,29 @@ class node final
     template <typename Function>
     void for_each_value(Function f) const;
 
-    std::string_view name();
+    std::string_view name() const;
 
-    [[nodiscard]] std::string path() const;
+    [[nodiscard]] path_view path() const;
 
     [[nodiscard]] uint8_t priority() const;
 
     [[nodiscard]] bool deleted() const;
 
 private:
-    node(std::string name, std::string path, uint8_t volume_priority, size_t depth);
+    node(path_view full_path, uint8_t volume_priority);
 
     void register_observer(detail::node_observer* observer);
     void unregister_observer(const detail::node_observer* observer);
     void notify_on_delete_subnode_observers(const std::shared_ptr<node>& subnode) const;
 
   private:
-    std::string name_;
-    std::string full_path_;
+    std::string full_path_str_;
+    path_view full_path_view_;
     uint8_t volume_priority;
     striped_hashmap<std::string, std::shared_ptr<node>> subnodes_;
     striped_hashmap<std::string, attr> values_;
     sorted_list<detail::node_observer*> observers_;
     std::atomic_bool deleted_ = false;
-    size_t depth_ = 0;
 };
 
 template <typename Function>

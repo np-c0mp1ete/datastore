@@ -17,19 +17,10 @@ class sorted_list
         {}
 
         node(node const& other) = delete;
-        node(node&& other) noexcept : m(std::move(other.m)), data(std::move(other.data)), next(std::move(other.next))
-        {
-        }
+        node(node&& other) noexcept = default;
 
         node& operator=(node const& other) = delete;
-        node& operator=(node&& other) noexcept
-        {
-            m = std::move(other.m);
-            data = std::move(other.data);
-            next = std::move(other.next);
-
-            return *this;
-        }
+        node& operator=(node&& other) noexcept = default;
 
         std::mutex m;
         std::shared_ptr<T> data;
@@ -40,15 +31,10 @@ public:
     sorted_list(const Compare& comp = Compare()) : comp_(comp)
     {}
 
-    ~sorted_list()
-    {
-        remove_if([](T const&){return true;});
-    }
-
     sorted_list(sorted_list const& other) = delete;
 
     sorted_list(sorted_list&& other) noexcept :
-        head_(std::move(other.head_)), comp_(std::move(other.comp_))
+        head_(std::move(other.head_)), comp_(std::move(other.comp_)), num_elements_(other.num_elements_.load())
     {
     }
 
@@ -58,6 +44,7 @@ public:
     {
         head_ = std::move(other.head_);
         comp_ = std::move(other.comp_);
+        num_elements_ = other.num_elements_.load();
 
         return *this;
     }

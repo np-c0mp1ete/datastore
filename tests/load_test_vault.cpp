@@ -23,11 +23,10 @@ const auto idx_str = to_string(std::make_index_sequence<max_idx>{});
 
 const std::string max_str = std::string(max_str_value_size_bytes, 'a');
 
-void init_tree(const std::shared_ptr<node_view>& parent, size_t cur_depth = 0)
+void init_tree(const std::shared_ptr<node_view>& parent, size_t cur_depth = 1)
 {
     if (cur_depth >= vault::max_tree_depth)
         return;
-    cur_depth++;
 
     for (size_t subnode_idx = 0; subnode_idx < node_view::max_num_subviews; subnode_idx++)
     {
@@ -39,15 +38,14 @@ void init_tree(const std::shared_ptr<node_view>& parent, size_t cur_depth = 0)
             CHECK(subnode->set_value(idx_str[value_idx], max_str));
         }
 
-        init_tree(subnode, cur_depth);
+        init_tree(subnode, cur_depth + 1);
     }
 }
 
-void check_tree(const std::shared_ptr<node_view>& parent, size_t cur_depth = 0)
+void check_tree(const std::shared_ptr<node_view>& parent, size_t cur_depth = 1)
 {
     if (cur_depth >= vault::max_tree_depth)
         return;
-    cur_depth++;
 
     size_t num_subnodes = 0;
     parent->for_each_subnode([&](const std::shared_ptr<node_view>& subnode) {
@@ -60,7 +58,7 @@ void check_tree(const std::shared_ptr<node_view>& parent, size_t cur_depth = 0)
 
         CHECK(num_values == datastore::node_view::max_num_values);
 
-        check_tree(subnode, cur_depth);
+        check_tree(subnode, cur_depth + 1);
 
         num_subnodes++;
     });
@@ -81,11 +79,11 @@ TEST_CASE("Vault supports basic operations at its elements size limits")
 
     BENCHMARK("Benchmark vault tree initialization")
     {
-        return init_tree(vol_root, 1);
+        init_tree(vol_root, 2);
     };
 
     BENCHMARK("Benchmark vault tree traversal")
     {
-        return check_tree(vol_root, 1);
+        check_tree(vol_root, 2);
     };
 }

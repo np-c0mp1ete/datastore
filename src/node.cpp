@@ -1,8 +1,6 @@
 #include "datastore/node.hpp"
-
 #include "datastore/volume.hpp"
 
-#include <set>
 #include <unordered_set>
 
 namespace datastore
@@ -26,27 +24,35 @@ std::ostream& operator<<(std::ostream& lhs, const value_type& rhs)
     return lhs;
 }
 
-node::node(std::string name, std::string path, uint8_t volume_priority, size_t depth)
-    : name_(std::move(name)), full_path_(std::move(path)), volume_priority(volume_priority), depth_(depth)
+node::node(path_view full_path, uint8_t volume_priority)
+    : full_path_str_(full_path.str()),
+      full_path_view_(full_path_str_),
+      volume_priority(volume_priority)
 {
+    if (!full_path_view_.valid())
+        deleted_ = true;
 }
 
 node::node(node&& other) noexcept
-    : name_(std::move(other.name_)), full_path_(std::move(other.full_path_)), volume_priority(other.volume_priority),
+    : full_path_str_(std::move(other.full_path_str_)),
+      full_path_view_(full_path_str_),
+      volume_priority(other.volume_priority),
       subnodes_(std::move(other.subnodes_)),
-      values_(std::move(other.values_)), deleted_(other.deleted_.load()), depth_(other.depth_)
+      values_(std::move(other.values_)),
+      observers_(std::move(other.observers_)),
+      deleted_(other.deleted_.load())
 {
 }
 
 node& node::operator=(node&& rhs) noexcept
 {
-    name_ = std::move(rhs.name_);
-    full_path_ = std::move(rhs.full_path_);
+    full_path_str_ = std::move(rhs.full_path_str_);
+    full_path_view_ = path_view(full_path_str_);
     volume_priority = rhs.volume_priority;
-    deleted_ = rhs.deleted_.load();
-    depth_ = rhs.depth_;
     subnodes_ = std::move(rhs.subnodes_);
     values_ = std::move(rhs.values_);
+    observers_ = std::move(rhs.observers_);
+    deleted_ = rhs.deleted_.load();
 
     return *this;
 }
@@ -59,30 +65,28 @@ std::shared_ptr<node> node::create_subnode(path_view subnode_path)
     if (deleted_)
         return nullptr;
 
-    if (depth_ >= volume::max_tree_depth)
+    if (full_path_view_.size() >= volume::max_tree_depth)
         return nullptr;
 
     const std::string subnode_name = std::string(*subnode_path.front());
 
-    std::shared_ptr<node> subnode(new node(subnode_name, full_path_ + path_view::path_separator + subnode_name, volume_priority, depth_ + 1));
-    const auto& subnode_success_pair = subnodes_.find_or_insert_with_limit(subnode_name, subnode, max_num_subnodes);
-    const auto [real_subnode, success] = subnode_success_pair;
+    const auto& subnode_success_pair = subnodes_.find_or_insert_with_limit(
+        subnode_name, new node(full_path_view_ + subnode_name, volume_priority), max_num_subnodes);
+    const auto [subnode, success] = subnode_success_pair;
     if (!success)
         return nullptr;
-
-    real_subnode->deleted_ = false;
 
     if (subnode_path.composite())
     {
         subnode_path.pop_front();
-        return real_subnode->create_subnode(std::move(subnode_path));
+        return subnode->create_subnode(std::move(subnode_path));
     }
 
     observers_.for_each([&](detail::node_observer* observer) {
         observer->on_create_subnode(subnode_success_pair.first);
     });
 
-    return real_subnode;
+    return subnode;
 }
 
 std::shared_ptr<node> node::open_subnode(path_view subnode_path) const
@@ -138,11 +142,11 @@ bool node::delete_subnode_tree(path_view subnode_name)
         return false;
     const std::shared_ptr<node>& subnode = opt.value();
 
+    notify_on_delete_subnode_observers(subnode);
+
     const bool success = subnodes_.erase(subnode_name.str()) > 0;
     if (!success)
         return false;
-
-    notify_on_delete_subnode_observers(subnode);
 
     return success;
 }
@@ -154,10 +158,10 @@ bool node::delete_subnode_tree()
 
     // notify_on_delete_subnode_observers() doesn't take subnodes_ locks internally
     // So it's safe to call it already holding a lock in for_each()
-    // subnodes_.for_each([&](const std::pair<std::string, std::shared_ptr<node>>& kv_pair) {
-    //     // Entire observers hierarchy needs to be notified about the subnode tree deletion first
-    //     notify_on_delete_subnode_observers(kv_pair.second);
-    // });
+    subnodes_.for_each([&](const std::shared_ptr<node>& subnode) {
+        // Entire observers hierarchy needs to be notified about the subnode tree deletion first
+        notify_on_delete_subnode_observers(subnode);
+    });
 
     subnodes_.clear();
 
@@ -193,22 +197,22 @@ std::optional<value_kind> node::get_value_kind(const std::string& value_name) co
     return opt_value->get_value_kind();
 }
 
-std::string_view node::name()
+std::string_view node::name() const
 {
-    return name_;
+    return *full_path_view_.back();
 }
 
-[[nodiscard]] std::string node::path() const
+path_view node::path() const
 {
-    return full_path_;
+    return full_path_view_;
 }
 
-[[nodiscard]] uint8_t node::priority() const
+uint8_t node::priority() const
 {
     return volume_priority;
 }
 
-[[nodiscard]] bool node::deleted() const
+bool node::deleted() const
 {
     return deleted_;
 }
@@ -231,7 +235,7 @@ void node::unregister_observer(const detail::node_observer* observer)
 
 std::ostream& operator<<(std::ostream& lhs, const node& rhs)
 {
-    lhs << rhs.path();
+    lhs << rhs.path().str();
 
     if (rhs.deleted())
         lhs << " (deleted)";

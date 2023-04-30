@@ -7,7 +7,7 @@ namespace datastore
 class vault final
 {
   public:
-    constexpr static size_t max_tree_depth = 5;
+    constexpr static size_t max_tree_depth = 7;
 
     std::shared_ptr<node_view> root()
     {
@@ -15,6 +15,6 @@ class vault final
     }
 
   private:
-    std::shared_ptr<node_view> root_ = std::shared_ptr<node_view>(new node_view("root", 0));
+    std::shared_ptr<node_view> root_ = std::shared_ptr<node_view>(new node_view("root"));
 };
 } // namespace datastore
