@@ -171,10 +171,7 @@ class node final
     // by acquiring locks in the user-supplied operations
     // and don't cause data races by storing the references for access outside the locks.
     template <typename Function>
-    void for_each_subnode(Function f) const
-    {
-        subnodes_.for_each(f);
-    }
+    void for_each_subnode(Function f) const;
 
 
     // Deletes the specified value from this node
@@ -196,17 +193,15 @@ class node final
     // by acquiring locks in the user-supplied operations
     // and don't cause data races by storing the references for access outside the locks.
     template <typename Function>
-    void for_each_value(Function f) const
-    {
-        values_.for_each(f);
-    }
+    void for_each_value(Function f) const;
 
     std::string_view name();
 
-    [[nodiscard]] uint8_t priority() const;
-
     [[nodiscard]] std::string path() const;
 
+    [[nodiscard]] uint8_t priority() const;
+
+    [[nodiscard]] bool deleted() const;
 
 private:
     node(std::string name, std::string path, uint8_t volume_priority, size_t depth);
@@ -217,7 +212,7 @@ private:
 
   private:
     std::string name_;
-    std::string path_;
+    std::string full_path_;
     uint8_t volume_priority;
     striped_hashmap<std::string, std::shared_ptr<node>> subnodes_;
     striped_hashmap<std::string, attr> values_;
@@ -226,9 +221,30 @@ private:
     size_t depth_ = 0;
 };
 
+template <typename Function>
+void node::for_each_subnode(Function f) const
+{
+    if (deleted_)
+        return;
+
+    subnodes_.for_each(f);
+}
+
+template <typename Function>
+void node::for_each_value(Function f) const
+{
+    if (deleted_)
+        return;
+
+    values_.for_each(f);
+}
+
 template <typename T, typename>
 [[nodiscard]] std::optional<T> node::get_value(const std::string& value_name) const
 {
+    if (deleted_)
+        return std::nullopt;
+
     const auto opt = values_.find(value_name);
     if (!opt)
         return std::nullopt;
@@ -240,6 +256,9 @@ template <typename T, typename>
 template <typename T, typename>
 bool node::set_value(const std::string& value_name, T&& new_value)
 {
+    if (deleted_)
+        return false;
+
     if (value_name.size() > max_value_name_size_bytes)
     {
         return false;
