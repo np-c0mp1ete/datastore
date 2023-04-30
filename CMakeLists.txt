@@ -90,7 +90,6 @@ add_library(datastore
 
     src/node.cpp
     src/node_view.cpp
-    src/vault.cpp
     src/volume.cpp
 )
 

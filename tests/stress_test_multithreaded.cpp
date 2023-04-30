@@ -5,6 +5,8 @@
 
 #include "datastore/volume.hpp"
 
+#include <iostream>
+
 using namespace datastore;
 
 namespace
@@ -252,6 +254,8 @@ int main(int argc, char* argv[])
         test_duration = std::chrono::seconds(std::stoi(argv[1]));
     }
 
+    std::cout << "Test duration is " << test_duration.count() << " seconds\n";
+
     vault vault1;
     vault1.root()->load_subnode_tree("vol", vol1.root());
     vault1.root()->load_subnode_tree("vol", vol2.root());
@@ -273,10 +277,12 @@ int main(int argc, char* argv[])
         node_view_create_tree, node_view_get_tree, node_view_delete_tree, node_view_load_subnode, node_view_unload_subnode
     };
 
-    std::vector<std::thread> node_actors(8);
-    std::vector<std::thread> node_view_actors(8);
+    std::vector<std::thread> node_actors(std::thread::hardware_concurrency() / 2);
+    std::vector<std::thread> node_view_actors(std::thread::hardware_concurrency() / 2);
 
     std::atomic_bool exit = false;
+
+    std::cout << "Starting actors...\n";
 
     for (size_t i = 0; i < node_actors.size(); ++i)
     {
@@ -302,9 +308,16 @@ int main(int argc, char* argv[])
         });
     }
 
-    std::this_thread::sleep_for(test_duration);
+    while (test_duration.count() > 0)
+    {
+        std::cout << test_duration.count() << " seconds left\n";
+        --test_duration;
+        std::this_thread::sleep_for(1s);
+    }
 
     exit = true;
+
+    std::cout << "Waiting for actors to finish...\n";
 
     for (auto& thread : node_actors)
     {
@@ -315,4 +328,6 @@ int main(int argc, char* argv[])
     {
         thread.join();
     }
+
+    std::cout << "Done\n";
 }

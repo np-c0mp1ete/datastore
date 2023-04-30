@@ -58,10 +58,7 @@ class node_view final : detail::node_observer
     bool delete_subview_tree();
 
     template <typename Function>
-    void for_each_subnode(Function f) const
-    {
-        subviews_.for_each(f);
-    }
+    void for_each_subnode(Function f) const;
 
 
     // Deletes the specified value from this node
@@ -80,23 +77,13 @@ class node_view final : detail::node_observer
     bool set_value(const std::string& value_name, T&& new_value);
 
     template <typename Function>
-    void for_each_value(Function f) const
-    {
-        std::unordered_map<std::string, attr> values;
+    void for_each_value(Function f) const;
 
-        nodes_.for_each([&](const std::shared_ptr<node>& node) {
-            node->for_each_value([&](const attr& a) {
-                values.emplace(a.name(), a);
-            });
-        });
-
-        for (const auto& [key, value] : values)
-            f(value);
-    }
-
-    std::string_view name();
+    [[nodiscard]] std::string_view name();
 
     [[nodiscard]] std::string path() const;
+
+    [[nodiscard]] bool expired() const;
 
   private:
     //TODO: depth can be inferred from the path
@@ -113,9 +100,39 @@ class node_view final : detail::node_observer
     std::atomic_bool expired_ = false;
 };
 
+template <typename Function>
+void node_view::for_each_subnode(Function f) const
+{
+    if (expired_)
+        return;
+
+    subviews_.for_each(f);
+}
+
+template <typename Function>
+void node_view::for_each_value(Function f) const
+{
+    if (expired_)
+        return;
+
+    std::unordered_map<std::string, attr> values;
+
+    nodes_.for_each([&](const std::shared_ptr<node>& node) {
+        node->for_each_value([&](const attr& a) {
+            values.emplace(a.name(), a);
+        });
+    });
+
+    for (const auto& [key, value] : values)
+        f(value);
+}
+
 template <typename T>
 [[nodiscard]] std::optional<T> node_view::get_value(const std::string& value_name) const
 {
+    if (expired_)
+        return std::nullopt;
+
     std::optional<T> value;
 
     nodes_.find_first_if([&](const std::shared_ptr<node>& node) {
@@ -129,9 +146,12 @@ template <typename T>
 template <typename T, typename>
 bool node_view::set_value(const std::string& value_name, T&& new_value)
 {
+    if (expired_)
+        return false;
+
     bool success = false;
 
-    // TODO: always inserts a value to the node with highest precedence
+    // Inserts a value to the node with highest precedence
     nodes_.find_first_if([&](const std::shared_ptr<node>& node) {
         success = node->set_value(value_name, new_value);
         return success;
