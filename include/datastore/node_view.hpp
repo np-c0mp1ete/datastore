@@ -13,7 +13,6 @@ namespace detail
 bool compare_nodes(const std::shared_ptr<node>& n1, const std::shared_ptr<node>& n2);
 }
 
-
 class node_view final : detail::node_observer
 {
     friend class vault;
@@ -58,9 +57,6 @@ class node_view final : detail::node_observer
     bool delete_subview_tree(path_view subview_name);
     bool delete_subview_tree();
 
-    // Retrieves an array of strings that contains all the subnode names
-    // [[nodiscard]] std::unordered_set<std::string> get_subnode_names() const;
-
     template <typename Function>
     void for_each_subnode(Function f) const
     {
@@ -82,18 +78,6 @@ class node_view final : detail::node_observer
     // Sets the value of a name/value pair in the node
     template <typename T, typename = std::enable_if_t<std::is_constructible_v<value_type, T>>>
     bool set_value(const std::string& value_name, T&& new_value);
-
-    // Retrieves an array of strings that contains all the value names associated with this node
-    // [[nodiscard]] auto get_values() const
-    // {
-    //     std::map<std::string, value_type> values;
-    //     // for (const std::shared_ptr<node>& node : nodes_)
-    //     // {
-    //     //     auto&& value_names = node->get_values();
-    //     //     values.insert(value_names.begin(), value_names.end());
-    //     // }
-    //     return values;
-    // }
 
     template <typename Function>
     void for_each_value(Function f) const
@@ -117,12 +101,12 @@ class node_view final : detail::node_observer
   private:
     //TODO: depth can be inferred from the path
     //TODO: path_view can be only 32 levels deep, full node path can be deeper
-    node_view(const path_view& path, size_t depth);
+    node_view(const path_view& full_path, size_t depth);
 
     void on_create_subnode(const std::shared_ptr<node>& subnode) override;
     void on_delete_subnode(const std::shared_ptr<node>& subnode) override;
 
-    std::string path_;
+    std::string full_path_;
     size_t depth_;
     striped_hashmap<std::string, std::shared_ptr<node_view>> subviews_;
     sorted_list<std::shared_ptr<node>, decltype(&detail::compare_nodes)> nodes_;

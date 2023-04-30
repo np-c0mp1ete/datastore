@@ -16,32 +16,16 @@ bool compare_nodes(const std::shared_ptr<node>& n1, const std::shared_ptr<node>&
 
 } // namespace detail
 
-node_view::node_view(const path_view& path, size_t depth) : depth_(depth), nodes_(&detail::compare_nodes)
+node_view::node_view(const path_view& full_path, size_t depth) : depth_(depth), nodes_(&detail::compare_nodes)
 {
-    if (!path.valid())
+    if (!full_path.valid())
         return;
 
-    path_ = path.str();
+    full_path_ = full_path.str();
 }
 
-//TODO: should node views be copyable?
-// [[nodiscard]] node_view::node_view(const node_view& other) noexcept
-//     : name_(other.name_), vault_(other.vault_), parent_(other.parent_), subviews_(other.subviews_),
-//       nodes_(other.nodes_), observer_(this)
-// {
-//     for (auto& [name, subnode] : subviews_)
-//     {
-//         subnode.parent_ = this;
-//     }
-//
-//     for (auto node : nodes_)
-//     {
-//         node->register_observer(&observer_);
-//     }
-// }
-
 node_view::node_view(node_view&& other) noexcept
-    : path_(std::move(other.path_)), depth_(other.depth_),
+    : full_path_(std::move(other.full_path_)), depth_(other.depth_),
       subviews_(std::move(other.subviews_)), nodes_(std::move(other.nodes_)), expired_(other.expired_.load())
 {
     nodes_.for_each([&](const std::shared_ptr<node>& node) {
@@ -56,33 +40,9 @@ node_view::~node_view() noexcept
     });
 }
 
-// node_view& node_view::operator=(const node_view& rhs) noexcept
-// {
-//     if (this == &rhs)
-//         return *this;
-//
-//     name_ = rhs.name_;
-//     vault_ = rhs.vault_;
-//     parent_ = rhs.parent_;
-//     subviews_ = rhs.subviews_;
-//     nodes_ = rhs.nodes_;
-//
-//     for (auto& [name, subnode] : subviews_)
-//     {
-//         subnode.parent_ = this;
-//     }
-//
-//     for (auto node : nodes_)
-//     {
-//         node->register_observer(&observer_);
-//     }
-//
-//     return *this;
-// }
-
 node_view& node_view::operator=(node_view&& rhs) noexcept
 {
-    path_ = std::move(rhs.path_);
+    full_path_ = std::move(rhs.full_path_);
     depth_ = rhs.depth_;
     subviews_ = std::move(rhs.subviews_);
     nodes_ = std::move(rhs.nodes_);
@@ -97,7 +57,10 @@ node_view& node_view::operator=(node_view&& rhs) noexcept
 
 std::shared_ptr<node_view> node_view::create_subnode(path_view subnode_path)
 {
-    if (!subnode_path.valid() || expired_)
+    if (!subnode_path.valid())
+        return nullptr;
+
+    if (expired_)
         return nullptr;
 
     if (depth_ > vault::max_tree_depth)
@@ -118,7 +81,7 @@ std::shared_ptr<node_view> node_view::create_subnode(path_view subnode_path)
     }
 
     // always takes the node with the highest precedence
-    auto main_node = nodes_.front();
+    const auto& main_node = nodes_.front();
     if (!main_node)
         return nullptr;
 
@@ -183,7 +146,7 @@ std::shared_ptr<node_view> node_view::load_subnode_tree(path_view subview_name, 
         return nullptr;
 
     // Create a subview to hold the subnode
-    std::shared_ptr<node_view> subview(new node_view(path_ + path_view::path_separator + target_subnode_name, depth_ + 1));
+    std::shared_ptr<node_view> subview(new node_view(full_path_ + path_view::path_separator + target_subnode_name, depth_ + 1));
     const auto subview_inserted_pair =
         subviews_.find_or_insert_with_limit(target_subnode_name, subview, max_num_subviews);
     const auto [real_subview, inserted] = subview_inserted_pair;
@@ -244,11 +207,10 @@ bool node_view::delete_subview_tree(path_view subview_name)
 
     //TODO: take care of the case when subnode_name != subview_name
     bool success = false;
+    // subview will be deleted in the on_delete_subnode() callback
     nodes_.for_each([&](const std::shared_ptr<node>& node) {
         success = success || node->delete_subnode_tree(target_subview_name);
     });
-
-    //subviews_.erase(target_subview_name);
 
     return success;
 }
@@ -257,30 +219,13 @@ bool node_view::delete_subview_tree()
 {
     // TODO: take care of the case when subnode_name != subview_name
     bool success = false;
+    // each subview will be deleted in the on_delete_subnode() callback
     nodes_.for_each([&](const std::shared_ptr<node>& node) {
         success = success || node->delete_subnode_tree();
     });
 
-    //subviews_.clear();
-
     return success;
 }
-
-// std::unordered_set<std::string> node_view::get_subnode_names() const
-// {
-//     // Copy strings to avoid scenarios when a subnode gets deleted
-//     // and the caller is left with a dangling pointer
-//     std::unordered_set<std::string> names;
-//
-//
-//     // for (const auto& [name, subnode] : subviews_)
-//     // {
-//     //     if (subnode.expired_)
-//     //         continue;
-//     //     names.insert(name);
-//     // }
-//     return names;
-// }
 
 size_t node_view::delete_value(const std::string& value_name)
 {
@@ -319,12 +264,12 @@ std::string_view node_view::name()
         return "";
 
     //TODO: unnecessary validation
-    return path_view(path_).back().value();
+    return path_view(full_path_).back().value();
 }
 
 [[nodiscard]] std::string node_view::path() const
 {
-    return path_;
+    return full_path_;
 }
 
 std::ostream& operator<<(std::ostream& lhs, const node_view& rhs)
@@ -377,5 +322,4 @@ void node_view::on_delete_subnode(const std::shared_ptr<node>& subnode)
         subviews_.erase(subnode_name);
     }
 }
-
 } // namespace datastore

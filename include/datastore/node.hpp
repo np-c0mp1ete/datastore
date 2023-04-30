@@ -151,7 +151,6 @@ class node final
     friend class node_view;
 
     friend std::ostream& operator<<(std::ostream& lhs, const node& rhs);
-    //friend std::ostream& operator<<(std::ostream& lhs, const node_view& rhs);
 
   public:
     static constexpr size_t max_num_subnodes = 10;
@@ -176,9 +175,6 @@ class node final
     bool delete_subnode_tree(path_view subnode_name);
     bool delete_subnode_tree();
 
-    // Retrieves an array of strings that contains all the subnode names
-    // std::unordered_set<std::string> get_subnode_names();
-
     // Leave it up to the user to ensure that they don't cause deadlock
     // by acquiring locks in the user-supplied operations
     // and don't cause data races by storing the references for access outside the locks.
@@ -197,20 +193,12 @@ class node final
     template <typename T, typename = std::enable_if_t<detail::allowed<T>::value>>
     [[nodiscard]] std::optional<T> get_value(const std::string& value_name) const;
 
-    //TODO: move to a wrapper class for std::variant
     // Retrieves the data type of the value associated with the specified name
     [[nodiscard]] std::optional<value_kind> get_value_kind(const std::string& value_name) const;
 
     // Sets the value of a name/value pair in the node
     template <typename T, typename = std::enable_if_t<std::is_constructible_v<value_type, T>>>
     bool set_value(const std::string& value_name, T&& new_value);
-
-    // Retrieves an array of strings that contains all the value names associated with this node
-    //TODO: use for_each pattern instead
-    // auto get_values() const
-    // {
-    //     return values_.get_map();
-    // }
 
     // Leave it up to the user to ensure that they don't cause deadlock
     // by acquiring locks in the user-supplied operations
@@ -239,7 +227,6 @@ private:
     std::string name_;
     std::string path_;
     uint8_t volume_priority;
-    // node* parent_;
     striped_hashmap<std::string, std::shared_ptr<node>> subnodes_;
     striped_hashmap<std::string, attr> values_;
     sorted_list<detail::node_observer*> observers_;

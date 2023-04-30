@@ -159,16 +159,6 @@ bool node::delete_subnode_tree()
     return true;
 }
 
-// std::unordered_set<std::string> node::get_subnode_names() const
-// {
-//     std::unordered_set<std::string> names;
-//     names.reserve(subnodes_.size());
-//     // subnodes_.for_each([&](const std::pair<std::string, std::shared_ptr<node>>& kv_pair) {
-//     //     names.emplace(kv_pair.first);
-//     // });
-//     return names;
-// }
-
 size_t node::delete_value(const std::string& value_name)
 {
     return values_.erase(value_name);
@@ -178,16 +168,6 @@ void node::delete_values()
 {
     values_.clear();
 }
-
-// std::unordered_set<std::string> node::get_value_names() const
-// {
-//     std::unordered_set<std::string> names;
-//     names.reserve(values_.size());
-//     // values_.for_each([&](const std::pair<std::string, value_type>& kv_pair) {
-//     //     names.emplace(kv_pair.first);
-//     // });
-//     return names;
-// }
 
 std::optional<value_kind> node::get_value_kind(const std::string& value_name) const
 {
@@ -204,11 +184,6 @@ std::string_view node::name()
     return name_;
 }
 
-// void node::set_name(const std::string& new_subnode_name)
-// {
-//     name_ = new_subnode_name;
-// }
-
 [[nodiscard]] uint8_t node::priority() const
 {
     return volume_priority;
@@ -218,15 +193,6 @@ std::string_view node::name()
 {
     return path_;
 }
-
-// void node::set_volume(volume* volume)
-// {
-//     volume_priority = volume;
-//     for (auto& [name, subnode] : subnodes_)
-//     {
-//         subnode.set_volume(volume);
-//     }
-// }
 
 void node::register_observer(detail::node_observer* observer)
 {
