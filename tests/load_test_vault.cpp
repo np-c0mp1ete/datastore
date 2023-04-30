@@ -1,3 +1,4 @@
+#include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include "datastore/vault.hpp"
@@ -78,7 +79,13 @@ TEST_CASE("Vault supports basic operations at its elements size limits")
     std::shared_ptr<node_view> vol_root = vault.root()->open_subnode("vol");
     CHECK(vol_root != nullptr);
 
-    init_tree(vol_root, 1);
+    BENCHMARK("Benchmark vault tree initialization")
+    {
+        return init_tree(vol_root, 1);
+    };
 
-    check_tree(vol_root, 1);
+    BENCHMARK("Benchmark vault tree traversal")
+    {
+        return check_tree(vol_root, 1);
+    };
 }

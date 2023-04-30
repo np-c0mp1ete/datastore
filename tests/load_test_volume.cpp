@@ -1,9 +1,9 @@
+#include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include "datastore/volume.hpp"
 
 #include <array>
-#include <iostream>
 
 using namespace datastore;
 
@@ -71,12 +71,27 @@ TEST_CASE("Volume supports basic operations at its elements size limits")
 {
     volume vol1(volume::priority_class::medium);
 
-    init_tree(vol1.root());
+    BENCHMARK("Benchmark volume tree initialization")
+    {
+        return init_tree(vol1.root());
+    };
 
-    CHECK(vol1.unload("vol1.vol"));
+    BENCHMARK("Benchmark saving volume to disk")
+    {
+        return vol1.save("vol1.vol");
+    };
 
-    auto vol2 = volume::load("vol1.vol");
+    std::optional<volume> vol2;
+
+    BENCHMARK("Benchmark loading volume from disk")
+    {
+        vol2 = volume::load("vol1.vol");
+    };
+
     CHECK(vol2.has_value());
 
-    check_tree(vol1.root());
+    BENCHMARK("Benchmark volume tree traversal")
+    {
+        return check_tree(vol2->root());
+    };
 }

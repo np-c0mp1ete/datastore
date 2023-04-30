@@ -56,7 +56,7 @@ class volume final
     volume& operator=(const volume& rhs) = delete;
     volume& operator=(volume&& rhs) noexcept = default;
 
-    bool unload(const std::filesystem::path& filepath);
+    bool save(const std::filesystem::path& filepath);
     static std::optional<volume> load(const std::filesystem::path& filepath);
 
     std::shared_ptr<node> root()

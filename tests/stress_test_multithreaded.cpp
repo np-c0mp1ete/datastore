@@ -261,8 +261,8 @@ int main(int argc, char* argv[])
     vault2.root()->load_subnode_tree("vol", vol2.root());
 
     auto volume_unload = [&](const std::shared_ptr<node>&, size_t) {
-        vol1.unload("vol1.vol");
-        vol2.unload("vol2.vol");
+        vol1.save("vol1.vol");
+        vol2.save("vol2.vol");
     };
 
     const std::vector<std::function<void(const std::shared_ptr<node>&, size_t)>> node_actions = {

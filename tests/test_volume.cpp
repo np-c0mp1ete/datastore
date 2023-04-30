@@ -17,7 +17,7 @@ TEST_CASE("Volumes can be stored to disk and loaded back", "[volume]")
     vol1.root()->set_value("str", "lorem ipsum");
     vol1.root()->set_value("bin", datastore::binary_blob_t{0xd, 0xe, 0xa, 0xd});
 
-    CHECK(vol1.unload("vol1.vol"));
+    CHECK(vol1.save("vol1.vol"));
 
     auto vol2 = datastore::volume::load("vol1.vol");
     REQUIRE(vol2.has_value());

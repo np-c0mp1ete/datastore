@@ -366,7 +366,7 @@ volume::volume(priority_t priority) : priority_(priority), root_(new node("root"
 //     return *this;
 // }
 
-bool volume::unload(const std::filesystem::path& filepath)
+bool volume::save(const std::filesystem::path& filepath)
 {
     std::ofstream ofs(filepath, std::ios::binary);
 

@@ -18,8 +18,8 @@ int main()
 
     std::cout << "vol1: " << *vol1.root() << std::endl;
 
-    vol1.unload("vol1.vol");
-    volume test = volume::load("vol1.vol").value();
+    vol1.save("vol1.vol");
+    volume vol1_copy = volume::load("vol1.vol").value();
 
 
     volume vol2(volume::priority_class::high);
@@ -27,11 +27,11 @@ int main()
     vol2.root()->create_subnode("7")->set_value("k3", "v");
 
     vol2.root()->create_subnode("2")->set_value("k", "v2");
-    vol2.unload("vol2.vol");
+    vol2.save("vol2.vol");
 
     vault vault1;
     vault1.root()->load_subnode_tree("vol1", vol1.root());
-    vault1.root()->open_subnode("vol1")->load_subnode_tree("2", vol1.root()->open_subnode("8"));
+    vault1.root()->open_subnode("vol1")->load_subnode_tree("2", vol1_copy.root()->open_subnode("8"));
     vault1.root()->open_subnode("vol1.2.4")->set_value("kk", "vv");
     vault1.root()->open_subnode("vol1.2")->delete_subview_tree("4");
 

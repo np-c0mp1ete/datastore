@@ -213,7 +213,7 @@ std::ostream& operator<<(std::ostream& lhs, const node& rhs)
     });
 
     rhs.for_each_subnode([&](const std::shared_ptr<node>& subnode) {
-        lhs << subnode;
+        lhs << *subnode;
     });
 
     return lhs;
