@@ -3,13 +3,14 @@
 #include <atomic>
 #include <functional>
 #include <list>
-#include <map>
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
 #include <utility>
 #include <vector>
 
+namespace datastore::detail
+{
 template <typename Key, typename Value>
 class striped_hashmap
 {
@@ -49,8 +50,8 @@ class striped_hashmap
         }
 
         template <typename K, typename V>
-        std::pair<Value, bool> insert_with_limit_if_not_exist(K&& key, V&& value, std::atomic_size_t& cur_size,
-                                         size_t max_size)
+        std::pair<Value, bool> find_or_insert_with_limit(K&& key, V&& value, std::atomic_size_t& cur_size,
+                                                              size_t max_size)
         {
             std::unique_lock lock(mutex);
             auto found_entry = find_entry_for(Key(key));
@@ -68,14 +69,16 @@ class striped_hashmap
             return std::pair<Value, bool>(entry->second, true);
         }
 
-        bool insert_with_limit_or_assign(Key const& key, Value const& value, std::atomic_size_t& cur_size, size_t max_size)
+        bool insert_with_limit_or_assign(Key const& key, Value const& value, std::atomic_size_t& cur_size,
+                                         size_t max_size)
         {
             std::unique_lock lock(mutex);
             auto found_entry = find_entry_for(key);
             if (found_entry == data.end())
             {
                 size_t expected = cur_size.load(std::memory_order_relaxed);
-                if (expected >= max_size || !cur_size.compare_exchange_weak(expected, expected + 1, std::memory_order_relaxed))
+                if (expected >= max_size ||
+                    !cur_size.compare_exchange_weak(expected, expected + 1, std::memory_order_relaxed))
                     return false;
 
                 data.push_back(bucket_value(key, value));
@@ -101,8 +104,8 @@ class striped_hashmap
     };
 
   public:
-    typedef Key key_type;
-    typedef Value mapped_type;
+    using key_type = Key;
+    using mapped_type = Value;
 
     striped_hashmap(unsigned num_buckets = 13)
         : buckets_(num_buckets)
@@ -145,7 +148,8 @@ class striped_hashmap
     template <typename K, typename V>
     std::pair<Value, bool> find_or_insert_with_limit(K&& key, V&& value, size_t max_num_elements)
     {
-        return bucket(key).insert_with_limit_if_not_exist(std::forward<K>(key), std::forward<V>(value), num_elements_, max_num_elements);
+        return bucket(key).find_or_insert_with_limit(std::forward<K>(key), std::forward<V>(value), num_elements_,
+                                                          max_num_elements);
     }
 
     size_t erase(Key const& key)
@@ -180,16 +184,14 @@ class striped_hashmap
     template <typename Function>
     void for_each(Function f) const
     {
-        //     std::vector<std::unique_lock<std::shared_mutex>> locks;
-        //     for (unsigned i = 0; i < buckets_.size(); ++i)
-        //     {
-        //         locks.push_back(std::unique_lock<std::shared_mutex>(buckets_[i]->mutex));
-        //     }
+        std::vector<std::shared_lock<std::shared_mutex>> locks;
+        for (unsigned i = 0; i < buckets_.size(); ++i)
+        {
+            locks.push_back(std::shared_lock<std::shared_mutex>(buckets_[i]->mutex));
+        }
 
         for (unsigned i = 0; i < buckets_.size(); ++i)
         {
-            std::shared_lock<std::shared_mutex> lock(buckets_[i]->mutex);
-
             for (auto it = buckets_[i]->data.cbegin(); it != buckets_[i]->data.cend(); ++it)
             {
                 f(it->second);
@@ -207,3 +209,4 @@ class striped_hashmap
     std::vector<std::unique_ptr<bucket_type>> buckets_;
     std::atomic_size_t num_elements_ = 0;
 };
+} // namespace datastore::detail

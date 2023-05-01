@@ -93,8 +93,8 @@ class node_view final : detail::node_observer
 
     std::string full_path_str_;
     path_view full_path_view_;
-    striped_hashmap<std::string, std::shared_ptr<node_view>> subviews_;
-    sorted_list<std::shared_ptr<node>, decltype(&detail::compare_nodes)> nodes_;
+    detail::striped_hashmap<std::string, std::shared_ptr<node_view>> subviews_;
+    detail::sorted_list<std::shared_ptr<node>, decltype(&detail::compare_nodes)> nodes_;
     std::atomic_bool expired_ = false;
 };
 

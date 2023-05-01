@@ -3,6 +3,8 @@
 #include <memory>
 #include <mutex>
 
+namespace datastore::detail
+{
 template <typename T, typename Compare = std::less<T>>
 class sorted_list
 {
@@ -154,3 +156,4 @@ private:
     Compare comp_;
     std::atomic_size_t num_elements_ = 0;
 };
+} // namespace datastore::detail

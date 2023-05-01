@@ -214,9 +214,9 @@ private:
     std::string full_path_str_;
     path_view full_path_view_;
     uint8_t volume_priority;
-    striped_hashmap<std::string, std::shared_ptr<node>> subnodes_;
-    striped_hashmap<std::string, attr> values_;
-    striped_hashmap<detail::node_observer*, detail::node_observer*> observers_;
+    detail::striped_hashmap<std::string, std::shared_ptr<node>> subnodes_;
+    detail::striped_hashmap<std::string, attr> values_;
+    detail::striped_hashmap<detail::node_observer*, detail::node_observer*> observers_;
     std::atomic_bool deleted_ = false;
 };
 

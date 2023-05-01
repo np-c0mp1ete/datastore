@@ -170,10 +170,8 @@ std::shared_ptr<node_view> node_view::load_subnode_tree(path_view subview_name, 
 
     if (!subnodes_loaded)
     {
-        // Undo subview creation
-        // TODO: add tests for this (and use cpp coverage to find similar code paths)
-        DATASTORE_ASSERT(false);
-        subviews_.erase(name);
+        // Undo subviews creation
+        unload_subnode_tree(subview_name);
         return nullptr;
     }
 
@@ -200,6 +198,9 @@ bool node_view::unload_subnode_tree(path_view subview_name)
     subview->expired_ = true;
     subview->nodes_.for_each([&](const std::shared_ptr<node>& node) {
         node->unregister_observer(subview.get());
+    });
+    subview->nodes_.remove_if([](const std::shared_ptr<node>&) {
+        return true;
     });
 
     return subviews_.erase(subview_name.str()) > 0;
