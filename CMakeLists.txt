@@ -11,7 +11,7 @@ option(DATASTORE_DEBUG "Enable developer assertions" ON)
 
 cmake_dependent_option(DATASTORE_ADDRESS_SANITIZER "Enable address sanitizer" ON "UNIX" OFF)
 cmake_dependent_option(DATASTORE_UB_SANITIZER "Enable undefined behavior sanitizer" ON "UNIX" OFF)
-cmake_dependent_option(DATASTORE_THREAD_SANITIZER "Enable thread sanitizer" OFF "UNIX;NOT DATASTORE_ADDRESS_SANITIZER" OFF)
+cmake_dependent_option(DATASTORE_THREAD_SANITIZER "Enable thread sanitizer" ON "UNIX;NOT DATASTORE_ADDRESS_SANITIZER" OFF)
 
 if(MSVC)
     # Use the highest warning level for Visual Studio.

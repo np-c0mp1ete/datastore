@@ -13,7 +13,7 @@ namespace detail
 bool compare_nodes(const std::shared_ptr<node>& n1, const std::shared_ptr<node>& n2);
 }
 
-class node_view final : detail::node_observer
+class node_view final : public detail::node_observer
 {
     friend class vault;
 

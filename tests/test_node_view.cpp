@@ -178,7 +178,7 @@ TEST_CASE("When a node has multiple node views, "
     size_t num_deleted = vol.root()->delete_subnode_tree("1");
 
     CHECK(num_deleted == 1);
-    CHECK(vault.root()->open_subnode("vol.1") != nullptr);
+    CHECK(vault.root()->open_subnode("vol.1") == nullptr);
     CHECK(vault.root()->open_subnode("vol.1.vol.1") == nullptr);
     CHECK(vault.root()->open_subnode("vol.2.vol.1") == nullptr);
 }

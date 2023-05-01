@@ -82,8 +82,15 @@ std::shared_ptr<node> node::create_subnode(path_view subnode_path)
         return subnode->create_subnode(std::move(subnode_path));
     }
 
-    observers_.for_each([&](detail::node_observer* observer) {
-        observer->on_create_subnode(subnode_success_pair.first);
+    observers_.remove_if([](const std::weak_ptr<detail::node_observer>& observer) {
+        return observer.expired();
+    });
+
+    observers_.for_each([&](const std::weak_ptr<detail::node_observer>& observer) {
+        if (const std::shared_ptr<detail::node_observer>& valid_observer = observer.lock())
+        {
+            valid_observer->on_create_subnode(subnode_success_pair.first);
+        }
     });
 
     return subnode;
@@ -117,15 +124,22 @@ std::shared_ptr<node> node::open_subnode(path_view subnode_path) const
     return subnode;
 }
 
-void node::notify_on_delete_subnode_observers(const std::shared_ptr<node>& subnode) const
+void node::notify_on_delete_subnode_observers(const std::shared_ptr<node>& subnode)
 {
     // Go bottom up the tree
     subnode->for_each_subnode([&](const std::shared_ptr<node>& node) {
         subnode->notify_on_delete_subnode_observers(node);
     });
 
-    observers_.for_each([&](detail::node_observer* observer) {
-        observer->on_delete_subnode(subnode);
+    observers_.remove_if([](const std::weak_ptr<detail::node_observer>& observer) {
+        return observer.expired();
+    });
+
+    observers_.for_each([&](const std::weak_ptr<detail::node_observer>& observer) {
+        if (const std::shared_ptr<detail::node_observer>& valid_observer = observer.lock())
+        {
+            valid_observer->on_delete_subnode(subnode);
+        }
     });
 
     subnode->deleted_ = true;
@@ -219,20 +233,12 @@ bool node::deleted() const
     return deleted_;
 }
 
-void node::register_observer(detail::node_observer* observer)
+void node::register_observer(const std::shared_ptr<detail::node_observer>& observer)
 {
     if (deleted_)
         return;
 
-    observers_.insert_with_limit_or_assign(observer, observer, std::numeric_limits<size_t>::max());
-}
-
-void node::unregister_observer(detail::node_observer* observer)
-{
-    if (deleted_)
-        return;
-
-    observers_.erase(observer);
+    observers_.push(observer);
 }
 
 std::ostream& operator<<(std::ostream& lhs, const node& rhs)

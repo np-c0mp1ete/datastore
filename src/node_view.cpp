@@ -31,17 +31,15 @@ node_view::node_view(node_view&& other) noexcept
       expired_(other.expired_.load())
 {
     // Iterate over newly acquired nodes and update their observers lists
-    nodes_.for_each([&](const std::shared_ptr<node>& node) {
-        node->unregister_observer(&other);
-        node->register_observer(this);
+    subviews_.for_each([&](const std::shared_ptr<node_view>& subview){
+        subview->nodes_.for_each([&](const std::shared_ptr<node>& node) {
+            node->register_observer(std::static_pointer_cast<node_observer>(subview));
+        });
     });
 }
 
 node_view::~node_view() noexcept
 {
-    nodes_.for_each([&](const std::shared_ptr<node>& node) {
-        node->unregister_observer(this);
-    });
 }
 
 node_view& node_view::operator=(node_view&& rhs) noexcept
@@ -53,9 +51,10 @@ node_view& node_view::operator=(node_view&& rhs) noexcept
     expired_ = rhs.expired_.load();
 
     // Iterate over newly acquired nodes and update their observers lists
-    nodes_.for_each([&](const std::shared_ptr<node>& node) {
-        node->unregister_observer(&rhs);
-        node->register_observer(this);
+    subviews_.for_each([&](const std::shared_ptr<node_view>& subview) {
+        subview->nodes_.for_each([&](const std::shared_ptr<node>& node) {
+            node->register_observer(std::static_pointer_cast<node_observer>(subview));
+        });
     });
 
     return *this;
@@ -173,7 +172,7 @@ std::shared_ptr<node_view> node_view::load_subnode_tree(const std::shared_ptr<no
     }
 
     subview->nodes_.push(subnode);
-    subnode->register_observer(subview.get());
+    subnode->register_observer(subview);
 
     return subview;
 }
@@ -193,9 +192,7 @@ bool node_view::unload_subnode_tree(path_view subview_name)
     subview->unload_subnode_tree();
 
     subview->expired_ = true;
-    subview->nodes_.for_each([&](const std::shared_ptr<node>& node) {
-        node->unregister_observer(subview.get());
-    });
+
     subview->nodes_.remove_if([](const std::shared_ptr<node>&) {
         return true;
     });
@@ -212,9 +209,6 @@ void node_view::unload_subnode_tree()
         subview->unload_subnode_tree();
 
         subview->expired_ = true;
-        subview->nodes_.for_each([&](const std::shared_ptr<node>& node) {
-            node->unregister_observer(subview.get());
-        });
     });
 
     subviews_.clear();

@@ -7,6 +7,7 @@
 
 #include "datastore/path_view.hpp"
 #include "datastore/detail/striped_hashmap.hpp"
+#include "datastore/detail/sorted_list.hpp"
 
 
 #if defined(DATASTORE_DEBUG) && !defined(NDEBUG)
@@ -204,9 +205,8 @@ class node final
 private:
     node(path_view full_path, uint8_t volume_priority);
 
-    void register_observer(detail::node_observer* observer);
-    void unregister_observer(detail::node_observer* observer);
-    void notify_on_delete_subnode_observers(const std::shared_ptr<node>& subnode) const;
+    void register_observer(const std::shared_ptr<detail::node_observer>& observer);
+    void notify_on_delete_subnode_observers(const std::shared_ptr<node>& subnode);
 
   private:
     std::string full_path_str_;
@@ -214,7 +214,7 @@ private:
     uint8_t volume_priority;
     detail::striped_hashmap<std::string, std::shared_ptr<node>> subnodes_;
     detail::striped_hashmap<std::string, attr> values_;
-    detail::striped_hashmap<detail::node_observer*, detail::node_observer*> observers_;
+    detail::sorted_list<std::weak_ptr<detail::node_observer>, std::owner_less<>> observers_;
     std::atomic_bool deleted_ = false;
 };
 
