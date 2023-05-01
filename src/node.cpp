@@ -224,15 +224,15 @@ void node::register_observer(detail::node_observer* observer)
     if (deleted_)
         return;
 
-    observers_.push(observer);
+    observers_.insert_with_limit_or_assign(observer, observer, std::numeric_limits<size_t>::max());
 }
 
-void node::unregister_observer(const detail::node_observer* observer)
+void node::unregister_observer(detail::node_observer* observer)
 {
     if (deleted_)
         return;
 
-    observers_.remove_if([&](const detail::node_observer* element) { return element == observer; });
+    observers_.erase(observer);
 }
 
 std::ostream& operator<<(std::ostream& lhs, const node& rhs)

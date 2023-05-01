@@ -207,7 +207,7 @@ private:
     node(path_view full_path, uint8_t volume_priority);
 
     void register_observer(detail::node_observer* observer);
-    void unregister_observer(const detail::node_observer* observer);
+    void unregister_observer(detail::node_observer* observer);
     void notify_on_delete_subnode_observers(const std::shared_ptr<node>& subnode) const;
 
   private:
@@ -216,7 +216,7 @@ private:
     uint8_t volume_priority;
     striped_hashmap<std::string, std::shared_ptr<node>> subnodes_;
     striped_hashmap<std::string, attr> values_;
-    sorted_list<detail::node_observer*> observers_;
+    striped_hashmap<detail::node_observer*, detail::node_observer*> observers_;
     std::atomic_bool deleted_ = false;
 };
 
