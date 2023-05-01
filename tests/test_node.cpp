@@ -10,13 +10,13 @@ using namespace datastore;
 TEST_CASE("Nodes can be created and opened", "[node]")
 {
     volume vol(volume::priority_class::medium);
-    auto node_1 = vol.root()->create_subnode("1");
+    const auto& node_1 = vol.root()->create_subnode("1");
 
     CHECK(node_1 != nullptr);
     CHECK(vol.root()->create_subnode("1") == node_1);
     CHECK(vol.root()->open_subnode("1") == node_1);
 
-    auto node_1_2_3 = node_1->create_subnode("2.3");
+    const auto& node_1_2_3 = node_1->create_subnode("2.3");
 
     CHECK(node_1_2_3 != nullptr);
     CHECK(vol.root()->create_subnode("1.2.3") == node_1_2_3);

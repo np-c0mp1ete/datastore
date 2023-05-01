@@ -17,7 +17,7 @@ TEST_CASE("Volume nodes can be loaded into a node view", "[node_view]")
 
     vault.root()->load_subnode_tree("vol", vol.root());
 
-    auto vol_view = vault.root()->open_subnode("vol");
+    const auto& vol_view = vault.root()->open_subnode("vol");
     CHECK(vol_view != nullptr);
 
     CHECK(vol_view->get_value_kind("k") == datastore::value_kind::str);
@@ -40,7 +40,7 @@ TEST_CASE("Volume nodes can be unloaded from a node view", "[node_view]")
 
     vault vault;
 
-    std::shared_ptr<node_view> subnode = vault.root()->load_subnode_tree("vol", vol.root());
+    const std::shared_ptr<node_view>& subnode = vault.root()->load_subnode_tree("vol", vol.root());
 
     CHECK(vault.root()->unload_subnode_tree("vol"));
     CHECK(vault.root()->open_subnode("vol") == nullptr);
@@ -75,7 +75,7 @@ TEST_CASE("In case of conflicting names, value is taken from a volume with a hig
     vault.root()->load_subnode_tree("vol", vol1.root());
     vault.root()->load_subnode_tree("vol", vol2.root());
 
-    auto subnode = vault.root()->open_subnode("vol");
+    const auto& subnode = vault.root()->open_subnode("vol");
     CHECK(subnode->get_value_kind("k") == datastore::value_kind::u32);
     CHECK(subnode->get_value<uint32_t>("k") == 0_u32);
 }
@@ -90,13 +90,13 @@ TEST_CASE("Same volume node can be loaded multiple times into different node vie
     vault.root()->load_subnode_tree("1", vol1.root());
     vault.root()->load_subnode_tree("2", vol1.root());
 
-    auto subnode1 = vault.root()->open_subnode("1");
+    const auto& subnode1 = vault.root()->open_subnode("1");
     CHECK(subnode1 != nullptr);
 
     CHECK(subnode1->get_value_kind("k") == datastore::value_kind::u32);
     CHECK(subnode1->get_value<uint32_t>("k") == 0_u32);
 
-    auto subnode2 = vault.root()->open_subnode("2");
+    const auto& subnode2 = vault.root()->open_subnode("2");
     CHECK(subnode2 != nullptr);
 
     CHECK(subnode2->get_value_kind("k") == datastore::value_kind::u32);

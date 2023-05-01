@@ -359,7 +359,7 @@ void node_view::on_delete_subnode(const std::shared_ptr<node>& subnode)
 
     // TODO: it's incorrect to check node name, node_views might have a different name
     const std::string subnode_name = std::string(subnode->name());
-    const auto opt = subviews_.find(subnode_name);
+    const auto& opt = subviews_.find(subnode_name);
     if (!opt)
         return;
     const std::shared_ptr<node_view>& subview = opt.value();
