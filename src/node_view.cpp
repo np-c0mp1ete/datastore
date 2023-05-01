@@ -135,11 +135,8 @@ std::shared_ptr<node_view> node_view::open_subnode(path_view subview_path) const
     return subview;
 }
 
-std::shared_ptr<node_view> node_view::load_subnode_tree(path_view subview_name, const std::shared_ptr<node>& subnode)
+std::shared_ptr<node_view> node_view::load_subnode_tree(const std::shared_ptr<node>& subnode)
 {
-    if (!subview_name.valid() || subview_name.composite())
-        return nullptr;
-
     if (expired_)
         return nullptr;
 
@@ -152,7 +149,7 @@ std::shared_ptr<node_view> node_view::load_subnode_tree(path_view subview_name, 
     if (full_path_view_.size() >= vault::max_tree_depth)
         return nullptr;
 
-    std::string name = subview_name.str();
+    std::string name = std::string(subnode->name());
 
     // Create a subview to hold the subnode
     const auto& subview_inserted_pair = subviews_.find_or_insert_with_limit(
@@ -165,13 +162,13 @@ std::shared_ptr<node_view> node_view::load_subnode_tree(path_view subview_name, 
     bool subnodes_loaded = true;
     subnode->for_each_subnode([&](const std::shared_ptr<node>& sub) {
         subnodes_loaded = subnodes_loaded &&
-                  subview_inserted_pair.first->load_subnode_tree(sub->name(), sub) != nullptr;
+                  subview_inserted_pair.first->load_subnode_tree(sub) != nullptr;
     });
 
     if (!subnodes_loaded)
     {
         // Undo subviews creation
-        unload_subnode_tree(subview_name);
+        unload_subnode_tree(name);
         return nullptr;
     }
 
@@ -233,7 +230,6 @@ bool node_view::delete_subview_tree(path_view subview_name)
 
     const std::string target_subview_name = subview_name.str();
 
-    //TODO: take care of the case when subnode_name != subview_name
     bool success = false;
     // subview will be deleted in the on_delete_subnode() callback
     nodes_.for_each([&](const std::shared_ptr<node>& node) {
@@ -248,7 +244,6 @@ bool node_view::delete_subview_tree()
     if (expired_)
         return false;
 
-    // TODO: take care of the case when subnode_name != subview_name
     bool success = false;
     // each subview will be deleted in the on_delete_subnode() callback
     nodes_.for_each([&](const std::shared_ptr<node>& node) {
@@ -358,7 +353,6 @@ void node_view::on_delete_subnode(const std::shared_ptr<node>& subnode)
     if (expired_)
         return;
 
-    // TODO: it's incorrect to check node name, node_views might have a different name
     const std::string subnode_name = std::string(subnode->name());
     const auto& opt = subviews_.find(subnode_name);
     if (!opt)

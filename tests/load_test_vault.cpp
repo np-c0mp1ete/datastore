@@ -12,7 +12,7 @@ using namespace datastore;
 TEST_CASE("Vault supports basic operations at its elements size limits")
 {
     vault vault;
-    CHECK(vault.root()->load_subnode_tree("vol", load_test::vol1.root()));
+    CHECK(vault.root()->load_subnode_tree(load_test::vol1.root()));
 
     const std::shared_ptr<node_view>& vol_root = vault.root()->open_subnode("vol");
     CHECK(vol_root != nullptr);

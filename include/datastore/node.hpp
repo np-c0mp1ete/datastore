@@ -3,12 +3,10 @@
 #include <optional>
 #include <ostream>
 #include <string>
-#include <unordered_map>
 #include <variant>
 
 #include "datastore/path_view.hpp"
 #include "datastore/detail/striped_hashmap.hpp"
-#include "datastore/detail/sorted_list.hpp"
 
 
 #if defined(DATASTORE_DEBUG) && !defined(NDEBUG)
@@ -251,7 +249,6 @@ template <typename T, typename>
     return opt->get_value<T>();
 }
 
-//TODO: cleanup data size conststraints code
 template <typename T, typename>
 bool node::set_value(const std::string& value_name, T&& new_value)
 {

@@ -22,8 +22,8 @@ const auto idx_str = to_string(std::make_index_sequence<max_idx>{});
 
 const std::string max_str = std::string(datastore::max_str_value_size_bytes, 'a');
 
-inline datastore::volume vol1(datastore::volume::priority_class::medium);
-inline datastore::volume vol2(datastore::volume::priority_class::medium);
+inline datastore::volume vol1("vol", datastore::volume::priority_class::medium);
+inline datastore::volume vol2("vol", datastore::volume::priority_class::medium);
 
 inline void node_create_tree(const std::shared_ptr<datastore::node>& parent, size_t cur_depth = 1)
 {
@@ -214,11 +214,12 @@ inline void node_view_load_subnode(const std::shared_ptr<datastore::node_view>& 
 
     for (size_t subnode_idx = 0; subnode_idx < datastore::node_view::max_num_subviews; subnode_idx++)
     {
-        const std::shared_ptr<datastore::node_view>& subnode =
-            parent->load_subnode_tree(idx_str[subnode_idx], vol1.root());
-        parent->load_subnode_tree(idx_str[subnode_idx], vol2.root());
+        const std::shared_ptr<datastore::node_view>& subnode = parent->open_subnode(idx_str[subnode_idx]);
         node_view_load_subnode(subnode, cur_depth + 1);
     }
+
+    parent->load_subnode_tree(vol1.root());
+    parent->load_subnode_tree(vol2.root());
 }
 
 inline void node_view_unload_subnode(const std::shared_ptr<datastore::node_view>& parent, size_t cur_depth = 1)

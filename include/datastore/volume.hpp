@@ -48,7 +48,7 @@ class volume final
 
     constexpr static size_t max_tree_depth = 5;
 
-    volume(priority_t priority);
+    volume(path_view root_name, priority_t priority);
 
     volume(const volume& other) = delete;
     volume(volume&& other) noexcept = default;

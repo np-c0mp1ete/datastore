@@ -9,7 +9,7 @@ TEST_CASE("Volumes can be stored to disk and loaded back", "[volume]")
 {
     using namespace datastore::literals;
 
-    datastore::volume vol1(datastore::volume::priority_class::medium);
+    datastore::volume vol1("vol", datastore::volume::priority_class::medium);
     vol1.root()->set_value("u32", 1_u32);
     vol1.root()->set_value("u64", 2_u64);
     vol1.root()->set_value("f32", 2.0f);

@@ -9,7 +9,7 @@ using namespace datastore;
 
 TEST_CASE("Nodes can be created and opened", "[node]")
 {
-    volume vol(volume::priority_class::medium);
+    volume vol("vol", volume::priority_class::medium);
     const auto& node_1 = vol.root()->create_subnode("1");
 
     CHECK(node_1 != nullptr);
@@ -25,7 +25,7 @@ TEST_CASE("Nodes can be created and opened", "[node]")
 
 TEST_CASE("Node trees can be deleted", "[node]")
 {
-    volume vol(volume::priority_class::medium);
+    volume vol("vol", volume::priority_class::medium);
 
     SECTION("Non-leaf nodes are deleted as expected")
     {
@@ -51,7 +51,7 @@ TEST_CASE("Node trees can be deleted", "[node]")
 
 TEST_CASE("Data type of the value with the given name can be retrieved", "[node]")
 {
-    volume vol(volume::priority_class::medium);
+    volume vol("vol", volume::priority_class::medium);
     vol.root()->set_value("k", "v");
 
     CHECK(vol.root()->get_value_kind("k") == datastore::value_kind::str);
@@ -59,7 +59,7 @@ TEST_CASE("Data type of the value with the given name can be retrieved", "[node]
 
 TEST_CASE("Value with the given name can be retvieved", "[node]")
 {
-    volume vol(volume::priority_class::medium);
+    volume vol("vol", volume::priority_class::medium);
     vol.root()->set_value("k", "v");
 
     CHECK(*vol.root()->get_value<std::string>("k") == "v");
@@ -73,7 +73,7 @@ TEST_CASE("Value with the given name can be retvieved", "[node]")
 
 TEST_CASE("Value with the given name can be deleted", "[node]")
 {
-    volume vol(volume::priority_class::medium);
+    volume vol("vol", volume::priority_class::medium);
     vol.root()->set_value("k", "v");
 
     const size_t num_deleted = vol.root()->delete_value("k");
@@ -84,7 +84,7 @@ TEST_CASE("Value with the given name can be deleted", "[node]")
 
 TEST_CASE("Subnodes can be iterated over", "[node]")
 {
-    volume vol(volume::priority_class::medium);
+    volume vol("vol", volume::priority_class::medium);
     vol.root()->create_subnode("1");
     vol.root()->create_subnode("2");
 

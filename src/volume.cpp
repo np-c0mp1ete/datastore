@@ -343,7 +343,7 @@ std::optional<volume> serializer::deserialize_volume(std::vector<uint8_t>& buffe
 
     DESERIALIZE_OPT(uint32_t, priority, deserialize_u32)
 
-    volume vol(static_cast<volume::priority_t>(priority));
+    volume vol("root", static_cast<volume::priority_t>(priority));
 
     std::optional<node> root_opt = deserialize_node("", static_cast<volume::priority_t>(priority), buffer, pos);
     if (!root_opt)
@@ -369,7 +369,9 @@ bool serializer::serialize_volume(volume& vol, std::vector<uint8_t>& buffer)
 }
 }
 
-volume::volume(priority_t priority) : priority_(priority), root_(new node("root", priority))
+volume::volume(path_view root_name, priority_t priority)
+    : priority_(priority),
+      root_(new node(std::move(root_name), priority))
 {
 }
 

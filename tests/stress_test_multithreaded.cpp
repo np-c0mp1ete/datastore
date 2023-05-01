@@ -21,12 +21,12 @@ int main(int argc, char* argv[])
     std::cout << "Test duration is " << test_duration.count() << " seconds\n";
 
     vault vault1;
-    vault1.root()->load_subnode_tree("vol", load_test::vol1.root());
-    vault1.root()->load_subnode_tree("vol", load_test::vol2.root());
+    vault1.root()->load_subnode_tree(load_test::vol1.root());
+    vault1.root()->load_subnode_tree(load_test::vol2.root());
 
     vault vault2;
-    vault2.root()->load_subnode_tree("vol", load_test::vol1.root());
-    vault2.root()->load_subnode_tree("vol", load_test::vol2.root());
+    vault2.root()->load_subnode_tree(load_test::vol1.root());
+    vault2.root()->load_subnode_tree(load_test::vol2.root());
 
     const std::vector<std::function<void(const std::shared_ptr<node>&, size_t)>> node_actions = {
         load_test::node_create_tree,

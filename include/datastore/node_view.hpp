@@ -41,10 +41,8 @@ class node_view final : detail::node_observer
     // The subnode can be several levels deep in the volume tree
     std::shared_ptr<node_view> open_subnode(path_view subview_path) const;
 
-    // TODO: what if the same node is loaded twice: one time as root and another time as child?
-    // TODO: check that the node was already loaded
     // Creates a subnode and loads the data from the specified node into that subnode
-    std::shared_ptr<node_view> load_subnode_tree(path_view subview_name, const std::shared_ptr<node>& subnode);
+    std::shared_ptr<node_view> load_subnode_tree(const std::shared_ptr<node>& subnode);
 
     // Unloads the specified subnode and its subnodes from the vault
     // This function removes a subnode from the vault but does not modify the volume containing the information.
