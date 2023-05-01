@@ -5,7 +5,6 @@
 
 #include "datastore/node.hpp"
 
-
 namespace datastore
 {
 namespace detail
@@ -13,8 +12,8 @@ namespace detail
 class serializer final
 {
   public:
-    std::optional<node> deserialize_node(path_view path, uint8_t volume_priority,
-                                         std::vector<uint8_t>& buffer, size_t& pos);
+    std::optional<node> deserialize_node(path_view path, uint8_t volume_priority, std::vector<uint8_t>& buffer,
+                                         size_t& pos);
     bool serialize_node(const node& n, std::vector<uint8_t>& buffer);
 
     std::optional<volume> deserialize_volume(std::vector<uint8_t>& buffer);
@@ -67,7 +66,7 @@ class volume final
         return priority_;
     }
 
-private:
+  private:
     priority_t priority_;
     std::shared_ptr<node> root_;
 };

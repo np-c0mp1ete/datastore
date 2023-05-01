@@ -50,7 +50,7 @@ class striped_hashmap
 
         template <typename K, typename V>
         std::pair<Value, bool> find_or_insert_with_limit(K&& key, V&& value, std::atomic_size_t& cur_size,
-                                                              size_t max_size)
+                                                         size_t max_size)
         {
             std::unique_lock lock(mutex);
             auto found_entry = find_entry_for(std::forward<K>(key));
@@ -69,8 +69,7 @@ class striped_hashmap
         }
 
         template <typename K, typename V>
-        bool insert_with_limit_or_assign(K&& key, V&& value, std::atomic_size_t& cur_size,
-                                         size_t max_size)
+        bool insert_with_limit_or_assign(K&& key, V&& value, std::atomic_size_t& cur_size, size_t max_size)
         {
             std::unique_lock lock(mutex);
             auto found_entry = find_entry_for(std::forward<K>(key));
@@ -150,7 +149,7 @@ class striped_hashmap
     std::pair<Value, bool> find_or_insert_with_limit(K&& key, V&& value, size_t max_num_elements)
     {
         return bucket(key).find_or_insert_with_limit(std::forward<K>(key), std::forward<V>(value), num_elements_,
-                                                          max_num_elements);
+                                                     max_num_elements);
     }
 
     size_t erase(Key const& key)

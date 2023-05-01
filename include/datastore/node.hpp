@@ -5,10 +5,9 @@
 #include <string>
 #include <variant>
 
-#include "datastore/path_view.hpp"
-#include "datastore/detail/striped_hashmap.hpp"
 #include "datastore/detail/sorted_list.hpp"
-
+#include "datastore/detail/striped_hashmap.hpp"
+#include "datastore/path_view.hpp"
 
 #if defined(DATASTORE_DEBUG) && !defined(NDEBUG)
 #include <cassert>
@@ -59,7 +58,6 @@ static_assert(std::variant_size_v<value_type> == to_underlying(value_kind::_coun
 
 std::ostream& operator<<(std::ostream& lhs, const value_type& rhs);
 
-
 namespace detail
 {
 
@@ -70,7 +68,6 @@ template <class T, class... Ts>
 struct is_one_of<T, std::variant<Ts...>> : std::bool_constant<(std::is_same_v<T, Ts> || ...)>
 {
 };
-
 
 template <class T>
 using allowed = is_one_of<T, value_type>;
@@ -103,7 +100,9 @@ constexpr uint64_t operator""_u64(unsigned long long value)
 class attr final
 {
   public:
-    attr(std::string name, value_type value) : name_(std::move(name)), value_(std::move(value))
+    attr(std::string name, value_type value)
+        : name_(std::move(name)),
+          value_(std::move(value))
     {
     }
 
@@ -172,7 +171,6 @@ class node final
     template <typename Function>
     void for_each_subnode(Function f) const;
 
-
     // Deletes the specified value from this node
     size_t delete_value(const std::string& value_name);
     void delete_values();
@@ -202,7 +200,7 @@ class node final
 
     [[nodiscard]] bool deleted() const;
 
-private:
+  private:
     node(path_view full_path, uint8_t volume_priority);
 
     void register_observer(const std::shared_ptr<detail::node_observer>& observer);

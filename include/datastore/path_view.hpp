@@ -17,7 +17,8 @@ class path_view
     constexpr static size_t max_path_depth = 32;
 
     template <typename T, typename = std::enable_if_t<std::is_constructible_v<std::string_view, T>>>
-    path_view(T&& path) : path_(std::forward<T>(path))
+    path_view(T&& path)
+        : path_(std::forward<T>(path))
     {
         valid_ = parse(path_);
     }
@@ -102,8 +103,9 @@ class path_view
             return false;
 
         // Only alphanumeric characters and path separators are allowed
-        if (!std::all_of(path.begin(), path.end(),
-                         [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == path_separator; }))
+        if (!std::all_of(path.begin(), path.end(), [](char c) {
+                return std::isalnum(static_cast<unsigned char>(c)) || c == path_separator;
+            }))
             return false;
 
         // Check against path depth limit
@@ -130,7 +132,9 @@ class path_view
             elements_.emplace_back("");
 
         // Check that all path elements are not empty
-        return std::all_of(elements_.begin(), elements_.end(), [](auto element) { return !element.empty(); });
+        return std::all_of(elements_.begin(), elements_.end(), [](auto element) {
+            return !element.empty();
+        });
     }
 
     std::string_view path_;

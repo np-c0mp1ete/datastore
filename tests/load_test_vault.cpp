@@ -8,7 +8,6 @@
 
 using namespace datastore;
 
-
 TEST_CASE("Vault supports basic operations at its elements size limits")
 {
     vault vault;

@@ -241,7 +241,8 @@ inline void node_view_unload_subnode(const std::shared_ptr<datastore::node_view>
     parent->unload_subnode_tree();
 }
 
-inline void volume_save(const std::shared_ptr<datastore::node>&, size_t) {
+inline void volume_save(const std::shared_ptr<datastore::node>&, size_t)
+{
     vol1.save("vol1.vol");
     vol2.save("vol2.vol");
 };

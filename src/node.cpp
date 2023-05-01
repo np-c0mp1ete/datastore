@@ -259,4 +259,4 @@ std::ostream& operator<<(std::ostream& lhs, const node& rhs)
 
     return lhs;
 }
-}
+} // namespace datastore

@@ -244,7 +244,7 @@ static_assert(std::get<value_kind>(serializers[3]) == value_kind::f64);
 static_assert(std::get<value_kind>(serializers[4]) == value_kind::str);
 static_assert(std::get<value_kind>(serializers[5]) == value_kind::bin);
 static_assert(serializers.size() == to_underlying(value_kind::_count));
-}
+} // namespace
 
 namespace detail
 {
@@ -308,7 +308,8 @@ bool serializer::serialize_node(const node& n, std::vector<uint8_t>& buffer)
     n.for_each_value([&](const attr& a) {
         success = success && serialize_str(std::string(a.name()), buffer);
         success = success && serialize_u64(static_cast<uint64_t>(a.get_value_kind().value()), buffer);
-        success = success && std::get<2>(serializers[static_cast<uint64_t>(a.get_value_kind().value())])(a.value(), buffer);
+        success =
+            success && std::get<2>(serializers[static_cast<uint64_t>(a.get_value_kind().value())])(a.value(), buffer);
         num_values++;
     });
     std::copy_n(reinterpret_cast<uint8_t*>(&num_values), sizeof(uint64_t), buffer.data() + values_size_pos);
@@ -367,7 +368,7 @@ bool serializer::serialize_volume(volume& vol, std::vector<uint8_t>& buffer)
 
     return success;
 }
-}
+} // namespace detail
 
 volume::volume(path_view root_name, priority_t priority)
     : priority_(priority),

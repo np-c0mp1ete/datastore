@@ -1,8 +1,8 @@
 #pragma once
 
-#include "datastore/node.hpp"
-#include "datastore/detail/striped_hashmap.hpp"
 #include "datastore/detail/sorted_list.hpp"
+#include "datastore/detail/striped_hashmap.hpp"
+#include "datastore/node.hpp"
 
 namespace datastore
 {
@@ -57,7 +57,6 @@ class node_view final : public detail::node_observer
 
     template <typename Function>
     void for_each_subnode(Function f) const;
-
 
     // Deletes the specified value from this node
     size_t delete_value(const std::string& value_name);

@@ -1,9 +1,10 @@
 #include "datastore/vault.hpp"
 #include "datastore/volume.hpp"
 
+#include <catch2/catch_test_macros.hpp>
+
 #include <iostream>
 #include <sstream>
-#include <catch2/catch_test_macros.hpp>
 
 using namespace datastore;
 using namespace datastore::literals;
@@ -153,7 +154,8 @@ TEST_CASE("Volume priority is respected by a node view after setting a value out
 }
 
 TEST_CASE("When a node has multiple node views, "
-          "all of them are updated in case a node gets deleted outside of a vault", "[node_view]")
+          "all of them are updated in case a node gets deleted outside of a vault",
+          "[node_view]")
 {
     volume vol("vol", volume::priority_class::medium);
     vol.root()->create_subnode("1")->set_value("k", "v");

@@ -17,7 +17,9 @@ bool compare_nodes(const std::shared_ptr<node>& n1, const std::shared_ptr<node>&
 } // namespace detail
 
 node_view::node_view(path_view full_path)
-    : full_path_str_(full_path.str()), full_path_view_(full_path_str_), nodes_(&detail::compare_nodes)
+    : full_path_str_(full_path.str()),
+      full_path_view_(full_path_str_),
+      nodes_(&detail::compare_nodes)
 {
     if (!full_path_view_.valid())
         expired_ = true;
@@ -31,7 +33,7 @@ node_view::node_view(node_view&& other) noexcept
       expired_(other.expired_.load())
 {
     // Iterate over newly acquired nodes and update their observers lists
-    subviews_.for_each([&](const std::shared_ptr<node_view>& subview){
+    subviews_.for_each([&](const std::shared_ptr<node_view>& subview) {
         subview->nodes_.for_each([&](const std::shared_ptr<node>& node) {
             node->register_observer(std::static_pointer_cast<node_observer>(subview));
         });
@@ -151,8 +153,8 @@ std::shared_ptr<node_view> node_view::load_subnode_tree(const std::shared_ptr<no
     std::string name = std::string(subnode->name());
 
     // Create a subview to hold the subnode
-    const auto& subview_inserted_pair = subviews_.find_or_insert_with_limit(
-        name, new node_view(full_path_view_ + name), max_num_subviews);
+    const auto& subview_inserted_pair =
+        subviews_.find_or_insert_with_limit(name, new node_view(full_path_view_ + name), max_num_subviews);
     const auto& [subview, success] = subview_inserted_pair;
     if (!success)
         return nullptr;
@@ -160,8 +162,7 @@ std::shared_ptr<node_view> node_view::load_subnode_tree(const std::shared_ptr<no
     // Try to load all subnodes recursively
     bool subnodes_loaded = true;
     subnode->for_each_subnode([&](const std::shared_ptr<node>& sub) {
-        subnodes_loaded = subnodes_loaded &&
-                  subview_inserted_pair.first->load_subnode_tree(sub) != nullptr;
+        subnodes_loaded = subnodes_loaded && subview_inserted_pair.first->load_subnode_tree(sub) != nullptr;
     });
 
     if (!subnodes_loaded)
@@ -312,8 +313,8 @@ std::ostream& operator<<(std::ostream& lhs, const node_view& rhs)
 
     rhs.nodes_.for_each([&](const std::shared_ptr<node>& node) {
         node->for_each_value([&](const attr& a) {
-            lhs << "-> [" << static_cast<size_t>(node->priority()) << "] " << a.name() << "@" << node->path().str() << " = "
-                << a.value() << std::endl;
+            lhs << "-> [" << static_cast<size_t>(node->priority()) << "] " << a.name() << "@" << node->path().str()
+                << " = " << a.value() << std::endl;
         });
     });
 
@@ -331,8 +332,8 @@ void node_view::on_create_subnode(const std::shared_ptr<node>& subnode)
 
     std::string subnode_name = std::string(subnode->name());
 
-    const auto [subview, success] =
-        subviews_.find_or_insert_with_limit(subnode_name, new node_view(full_path_view_ + subnode_name), max_num_subviews);
+    const auto [subview, success] = subviews_.find_or_insert_with_limit(
+        subnode_name, new node_view(full_path_view_ + subnode_name), max_num_subviews);
     if (!success)
     {
         // Too many subviews exist already
