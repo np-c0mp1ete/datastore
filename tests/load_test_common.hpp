@@ -30,9 +30,12 @@ inline void node_create_tree(const std::shared_ptr<datastore::node>& parent, siz
     if (cur_depth >= datastore::volume::max_tree_depth)
         return;
 
+    if (!parent)
+        return;
+
     for (size_t subnode_idx = 0; subnode_idx < datastore::node::max_num_subnodes; subnode_idx++)
     {
-        std::shared_ptr<datastore::node> subnode = parent->create_subnode(idx_str[subnode_idx]);
+        const std::shared_ptr<datastore::node>& subnode = parent->create_subnode(idx_str[subnode_idx]);
         node_create_tree(subnode, cur_depth + 1);
     }
 
@@ -47,14 +50,12 @@ inline void node_view_create_tree(const std::shared_ptr<datastore::node_view>& p
     if (cur_depth >= datastore::vault::max_tree_depth)
         return;
 
+    if (!parent)
+        return;
+
     for (size_t subnode_idx = 0; subnode_idx < datastore::node_view::max_num_subviews; subnode_idx++)
     {
-        std::shared_ptr<datastore::node_view> subnode = parent->create_subnode(idx_str[subnode_idx]);
-
-        // Can happen if e.g. the parent was deleted from the vault
-        if (!subnode)
-            continue;
-
+        const std::shared_ptr<datastore::node_view>& subnode = parent->create_subnode(idx_str[subnode_idx]);
         node_view_create_tree(subnode, cur_depth + 1);
     }
 
@@ -69,11 +70,12 @@ inline void node_get_tree(const std::shared_ptr<datastore::node>& parent, size_t
     if (cur_depth >= datastore::volume::max_tree_depth)
         return;
 
+    if (!parent)
+        return;
+
     for (size_t subnode_idx = 0; subnode_idx < datastore::node::max_num_subnodes; subnode_idx++)
     {
-        const std::shared_ptr<datastore::node> subnode = parent->open_subnode(idx_str[subnode_idx]);
-        if (!subnode)
-            continue;
+        const std::shared_ptr<datastore::node>& subnode = parent->open_subnode(idx_str[subnode_idx]);
         node_get_tree(subnode, cur_depth + 1);
     }
 
@@ -104,11 +106,12 @@ inline void node_view_get_tree(const std::shared_ptr<datastore::node_view>& pare
     if (cur_depth >= datastore::vault::max_tree_depth)
         return;
 
+    if (!parent)
+        return;
+
     for (size_t subnode_idx = 0; subnode_idx < datastore::node_view::max_num_subviews; subnode_idx++)
     {
-        const std::shared_ptr<datastore::node_view> subnode = parent->open_subnode(idx_str[subnode_idx]);
-        if (!subnode)
-            continue;
+        const std::shared_ptr<datastore::node_view>& subnode = parent->open_subnode(idx_str[subnode_idx]);
         node_view_get_tree(subnode, cur_depth + 1);
     }
 
@@ -142,11 +145,12 @@ inline void node_delete_tree(const std::shared_ptr<datastore::node>& parent, siz
     if (cur_depth >= datastore::volume::max_tree_depth)
         return;
 
+    if (!parent)
+        return;
+
     for (size_t subnode_idx = 0; subnode_idx < datastore::node::max_num_subnodes; subnode_idx++)
     {
-        const std::shared_ptr<datastore::node> subnode = parent->open_subnode(idx_str[subnode_idx]);
-        if (!subnode)
-            continue;
+        const std::shared_ptr<datastore::node>& subnode = parent->open_subnode(idx_str[subnode_idx]);
         node_delete_tree(subnode, cur_depth + 1);
 
         parent->delete_subnode_tree(idx_str[subnode_idx]);
@@ -173,11 +177,12 @@ inline void node_view_delete_tree(const std::shared_ptr<datastore::node_view>& p
     if (cur_depth >= datastore::vault::max_tree_depth)
         return;
 
+    if (!parent)
+        return;
+
     for (size_t subnode_idx = 0; subnode_idx < datastore::node_view::max_num_subviews; subnode_idx++)
     {
-        const std::shared_ptr<datastore::node_view> subnode = parent->open_subnode(idx_str[subnode_idx]);
-        if (!subnode)
-            continue;
+        const std::shared_ptr<datastore::node_view>& subnode = parent->open_subnode(idx_str[subnode_idx]);
         node_view_delete_tree(subnode, cur_depth + 1);
 
         parent->delete_subview_tree(idx_str[subnode_idx]);
@@ -204,13 +209,14 @@ inline void node_view_load_subnode(const std::shared_ptr<datastore::node_view>& 
     if (cur_depth >= datastore::vault::max_tree_depth)
         return;
 
+    if (!parent)
+        return;
+
     for (size_t subnode_idx = 0; subnode_idx < datastore::node_view::max_num_subviews; subnode_idx++)
     {
-        const std::shared_ptr<datastore::node_view> subnode =
+        const std::shared_ptr<datastore::node_view>& subnode =
             parent->load_subnode_tree(idx_str[subnode_idx], vol1.root());
         parent->load_subnode_tree(idx_str[subnode_idx], vol2.root());
-        if (!subnode)
-            continue;
         node_view_load_subnode(subnode, cur_depth + 1);
     }
 }
@@ -220,11 +226,12 @@ inline void node_view_unload_subnode(const std::shared_ptr<datastore::node_view>
     if (cur_depth >= datastore::vault::max_tree_depth)
         return;
 
+    if (!parent)
+        return;
+
     for (size_t subnode_idx = 0; subnode_idx < datastore::node_view::max_num_subviews; subnode_idx++)
     {
-        const std::shared_ptr<datastore::node_view> subnode = parent->open_subnode(idx_str[subnode_idx]);
-        if (!subnode)
-            continue;
+        const std::shared_ptr<datastore::node_view>& subnode = parent->open_subnode(idx_str[subnode_idx]);
         node_view_unload_subnode(subnode, cur_depth + 1);
 
         parent->unload_subnode_tree(idx_str[subnode_idx]);

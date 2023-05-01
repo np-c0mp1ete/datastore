@@ -127,6 +127,8 @@ void node::notify_on_delete_subnode_observers(const std::shared_ptr<node>& subno
     observers_.for_each([&](detail::node_observer* observer) {
         observer->on_delete_subnode(subnode);
     });
+
+    subnode->deleted_ = true;
 }
 
 bool node::delete_subnode_tree(path_view subnode_name)
