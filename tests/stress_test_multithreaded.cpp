@@ -274,7 +274,7 @@ int main(int argc, char* argv[])
 
     std::atomic_bool exit = false;
 
-    std::cout << "Starting actors...\n";
+    std::cout << "Starting " << node_actors.size() << " node actors\n";
 
     for (size_t i = 0; i < node_actors.size(); ++i)
     {
@@ -287,6 +287,8 @@ int main(int argc, char* argv[])
             }
         });
     }
+
+    std::cout << "Starting " << node_view_actors.size() << " node_view actors\n";
 
     for (size_t i = 0; i < node_view_actors.size(); ++i)
     {

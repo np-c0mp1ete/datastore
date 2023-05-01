@@ -30,7 +30,9 @@ node_view::node_view(node_view&& other) noexcept
       nodes_(std::move(other.nodes_)),
       expired_(other.expired_.load())
 {
-    other.nodes_.for_each([&](const std::shared_ptr<node>& node) {
+    // Iterate over newly acquired nodes and update their observers lists
+    nodes_.for_each([&](const std::shared_ptr<node>& node) {
+        node->unregister_observer(&other);
         node->register_observer(this);
     });
 }
@@ -50,7 +52,9 @@ node_view& node_view::operator=(node_view&& rhs) noexcept
     nodes_ = std::move(rhs.nodes_);
     expired_ = rhs.expired_.load();
 
-    rhs.nodes_.for_each([&](const std::shared_ptr<node>& node) {
+    // Iterate over newly acquired nodes and update their observers lists
+    nodes_.for_each([&](const std::shared_ptr<node>& node) {
+        node->unregister_observer(&rhs);
         node->register_observer(this);
     });
 
@@ -151,23 +155,24 @@ std::shared_ptr<node_view> node_view::load_subnode_tree(path_view subview_name, 
     std::string name = subview_name.str();
 
     // Create a subview to hold the subnode
-    const auto subview_inserted_pair = subviews_.find_or_insert_with_limit(
+    const auto& subview_inserted_pair = subviews_.find_or_insert_with_limit(
         name, new node_view(full_path_view_ + name), max_num_subviews);
-    const auto [subview, inserted] = subview_inserted_pair;
-    if (!inserted)
+    const auto& [subview, success] = subview_inserted_pair;
+    if (!success)
         return nullptr;
 
     // Try to load all subnodes recursively
-    bool success = true;
+    bool subnodes_loaded = true;
     subnode->for_each_subnode([&](const std::shared_ptr<node>& sub) {
-        success = success &&
+        subnodes_loaded = subnodes_loaded &&
                   subview_inserted_pair.first->load_subnode_tree(sub->name(), sub) != nullptr;
     });
 
-    if (!success)
+    if (!subnodes_loaded)
     {
         // Undo subview creation
         // TODO: add tests for this (and use cpp coverage to find similar code paths)
+        DATASTORE_ASSERT(false);
         subviews_.erase(name);
         return nullptr;
     }
