@@ -286,7 +286,7 @@ std::optional<node> serializer::deserialize_node(path_view path, volume::priorit
 
         std::string subnode_name = std::string(child->name());
         auto [subnode, success] = n.subnodes_.find_or_insert_with_limit(
-            subnode_name, std::make_shared<node>(std::move(child.value())), node::max_num_subnodes);
+            std::move(subnode_name), std::make_shared<node>(std::move(child.value())), node::max_num_subnodes);
 
         if (!success)
             return std::nullopt;

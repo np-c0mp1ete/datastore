@@ -30,7 +30,7 @@ class path_view
 
     path_view(std::nullptr_t) = delete;
 
-    [[nodiscard]] bool valid() const
+    [[nodiscard]] bool valid() const noexcept
     {
         return valid_ && !elements_.empty();
     }
@@ -80,8 +80,7 @@ class path_view
         elements_.pop_back();
     }
 
-    // TODO: add noexcept-s
-    [[nodiscard]] size_t size() const
+    [[nodiscard]] size_t size() const noexcept
     {
         return valid_ ? elements_.size() : 0;
     }
@@ -91,7 +90,7 @@ class path_view
         return valid_ ? std::string(path_) : "";
     }
 
-    operator std::string_view() const
+    operator std::string_view() const noexcept
     {
         return valid_ ? path_ : "";
     }

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <string_view>
 #include <filesystem>
 #include <optional>
 
@@ -11,7 +10,6 @@ namespace datastore
 {
 namespace detail
 {
-// TODO: add serializer unit tests
 class serializer final
 {
   public:

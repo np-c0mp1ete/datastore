@@ -20,9 +20,8 @@ class striped_hashmap
       private:
         friend class striped_hashmap;
 
-        typedef std::pair<Key, Value> bucket_value;
-        typedef std::list<bucket_value> bucket_data;
-        typedef typename bucket_data::iterator bucket_iterator;
+        using bucket_value = std::pair<Key, Value>;
+        using bucket_data = std::list<bucket_value>;
 
         bucket_data data;
         mutable std::shared_mutex mutex;
@@ -54,7 +53,7 @@ class striped_hashmap
                                                               size_t max_size)
         {
             std::unique_lock lock(mutex);
-            auto found_entry = find_entry_for(Key(key));
+            auto found_entry = find_entry_for(std::forward<K>(key));
             if (found_entry == data.end())
             {
                 size_t expected = cur_size.load(std::memory_order_relaxed);
@@ -62,18 +61,19 @@ class striped_hashmap
                     !cur_size.compare_exchange_weak(expected, expected + 1, std::memory_order_relaxed))
                     return std::make_pair<Value, bool>(Value(), false);
 
-                data.push_back(bucket_value(key, std::forward<V>(value)));
+                data.push_back(bucket_value(std::forward<K>(key), std::forward<V>(value)));
             }
 
-            auto entry = find_entry_for(key);
+            auto entry = find_entry_for(std::forward<K>(key));
             return std::pair<Value, bool>(entry->second, true);
         }
 
-        bool insert_with_limit_or_assign(Key const& key, Value const& value, std::atomic_size_t& cur_size,
+        template <typename K, typename V>
+        bool insert_with_limit_or_assign(K&& key, V&& value, std::atomic_size_t& cur_size,
                                          size_t max_size)
         {
             std::unique_lock lock(mutex);
-            auto found_entry = find_entry_for(key);
+            auto found_entry = find_entry_for(std::forward<K>(key));
             if (found_entry == data.end())
             {
                 size_t expected = cur_size.load(std::memory_order_relaxed);
@@ -81,11 +81,11 @@ class striped_hashmap
                     !cur_size.compare_exchange_weak(expected, expected + 1, std::memory_order_relaxed))
                     return false;
 
-                data.push_back(bucket_value(key, value));
+                data.push_back(bucket_value(std::forward<K>(key), std::forward<V>(value)));
             }
             else
             {
-                found_entry->second = value;
+                found_entry->second = std::forward<V>(value);
             }
             return true;
         }
@@ -139,10 +139,11 @@ class striped_hashmap
         return bucket(key).value_for(key);
     }
 
-    // TODO: support r-values
-    bool insert_with_limit_or_assign(Key const& key, Value const& value, size_t max_num_elements)
+    template <typename K, typename V>
+    bool insert_with_limit_or_assign(K&& key, V&& value, size_t max_num_elements)
     {
-        return bucket(key).insert_with_limit_or_assign(key, value, num_elements_, max_num_elements);
+        return bucket(key).insert_with_limit_or_assign(std::forward<K>(key), std::forward<V>(value), num_elements_,
+                                                       max_num_elements);
     }
 
     template <typename K, typename V>
