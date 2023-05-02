@@ -4,7 +4,6 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <iostream>
-#include <sstream>
 
 using namespace datastore;
 using namespace datastore::literals;

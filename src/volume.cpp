@@ -274,7 +274,7 @@ std::optional<node> serializer::deserialize_node(path_view path, volume::priorit
             return std::nullopt;
         value_type value = opt.value();
         attr a(value_name, std::move(value));
-        n.values_.insert_with_limit_or_assign(value_name, std::move(a), node::max_num_values);
+        n.values_.assign_or_insert_with_limit(value_name, std::move(a), node::max_num_values);
     }
 
     DESERIALIZE_OPT(uint64_t, subnodes_count, deserialize_u64)

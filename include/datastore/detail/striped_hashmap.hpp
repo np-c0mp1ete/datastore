@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <functional>
+#include <optional>
 #include <list>
 #include <memory>
 #include <mutex>
@@ -11,6 +12,8 @@
 
 namespace datastore::detail
 {
+// Implementation is based on the fine-grained locking lookup table implementation
+// from Chapter 6 of "C++ Concurrency in Action" by A. Williams
 template <typename Key, typename Value>
 class striped_hashmap
 {
@@ -69,7 +72,7 @@ class striped_hashmap
         }
 
         template <typename K, typename V>
-        bool insert_with_limit_or_assign(K&& key, V&& value, std::atomic_size_t& cur_size, size_t max_size)
+        bool assign_or_insert_with_limit(K&& key, V&& value, std::atomic_size_t& cur_size, size_t max_size)
         {
             std::unique_lock lock(mutex);
             auto found_entry = find_entry_for(std::forward<K>(key));
@@ -139,9 +142,9 @@ class striped_hashmap
     }
 
     template <typename K, typename V>
-    bool insert_with_limit_or_assign(K&& key, V&& value, size_t max_num_elements)
+    bool assign_or_insert_with_limit(K&& key, V&& value, size_t max_num_elements)
     {
-        return bucket(key).insert_with_limit_or_assign(std::forward<K>(key), std::forward<V>(value), num_elements_,
+        return bucket(key).assign_or_insert_with_limit(std::forward<K>(key), std::forward<V>(value), num_elements_,
                                                        max_num_elements);
     }
 

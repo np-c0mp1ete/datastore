@@ -6,6 +6,8 @@
 
 namespace datastore::detail
 {
+// Implementation is based on the fine-grained locking list implementation
+// from Chapter 6 of "C++ Concurrency in Action" by A. Williams
 template <typename T, typename Compare = std::less<T>>
 class sorted_list
 {

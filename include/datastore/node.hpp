@@ -270,6 +270,6 @@ bool node::set_value(const std::string& value_name, T&& new_value)
     }
 
     attr a(value_name, std::move(value));
-    return values_.insert_with_limit_or_assign(value_name, std::move(a), max_num_values);
+    return values_.assign_or_insert_with_limit(value_name, std::move(a), max_num_values);
 }
 } // namespace datastore
