@@ -184,12 +184,14 @@ bool serialize_str(const value_type& value, std::vector<uint8_t>& buffer)
 
 std::optional<value_type> deserialize_bin(const std::vector<uint8_t>& buffer, size_t& pos)
 {
+    // Make sure the read buffer has enough space to hold the number of bytes in a binary blob
     if (pos >= buffer.size() || buffer.size() - pos < sizeof(uint64_t))
     {
         DATASTORE_ASSERT(false);
         return std::nullopt;
     }
 
+    // Read the number of bytes in the binary blob
     const std::optional<value_type> opt = deserialize_u64(buffer, pos);
     if (!opt)
     {
@@ -198,12 +200,14 @@ std::optional<value_type> deserialize_bin(const std::vector<uint8_t>& buffer, si
     }
     const auto len = static_cast<size_t>(std::get<uint64_t>(opt.value()));
 
+    // Make sure the read buffer is not smaller than the number of bytes in the binary blob
     if (pos >= buffer.size() || buffer.size() - pos < len)
     {
         DATASTORE_ASSERT(false);
         return std::nullopt;
     }
 
+    // Read the binary blob content
     auto blob = binary_blob_t(buffer.data() + pos, buffer.data() + pos + len);
     pos += len;
 
@@ -269,6 +273,7 @@ std::optional<node> serializer::deserialize_node(path_view path, volume::priorit
         DESERIALIZE_OPT(std::string, value_name, deserialize_str)
         DESERIALIZE_OPT(uint64_t, type, deserialize_u64)
 
+        // Call a deserializer for the given value kind
         opt = std::get<1>(serializers[static_cast<size_t>(type)])(buffer, pos);
         if (!opt)
             return std::nullopt;
@@ -301,6 +306,8 @@ bool serializer::serialize_node(const node& n, std::vector<uint8_t>& buffer)
 
     success = success && serialize_str(std::string(n.name()), buffer);
 
+    // Reserve a place for storing the number of values
+    // Actual value will be written after we iterate over them all and count
     const size_t values_size_pos = buffer.size();
     success = success && serialize_u64(static_cast<uint64_t>(0), buffer);
 
@@ -314,6 +321,8 @@ bool serializer::serialize_node(const node& n, std::vector<uint8_t>& buffer)
     });
     std::copy_n(reinterpret_cast<uint8_t*>(&num_values), sizeof(uint64_t), buffer.data() + values_size_pos);
 
+    // Reserve a place for storing the number of subnodes
+    // Actual value will be written after we iterate over them all and count
     const size_t subnodes_size_pos = buffer.size();
     success = success && serialize_u64(static_cast<uint64_t>(0), buffer);
 
@@ -334,10 +343,13 @@ std::optional<volume> serializer::deserialize_volume(std::vector<uint8_t>& buffe
     size_t pos = 0;
     std::optional<value_type> opt;
 
+    // Make sure it's actually a volume file by checking the file signature
     DESERIALIZE_OPT(binary_blob_t, signature, deserialize_bin)
     if (signature != volume::signature)
         return std::nullopt;
 
+    // Read the endianness of the system the file was created in
+    // Fail if it doesn't match the endianness of the current system
     DESERIALIZE_OPT(uint32_t, endianness, deserialize_u32)
     if (static_cast<endian>(endianness) != endian::native)
         return std::nullopt;
@@ -402,6 +414,7 @@ std::optional<volume> volume::load(const std::filesystem::path& filepath)
     if (!std::filesystem::is_regular_file(filepath))
         return std::nullopt;
 
+    // Open the file
     std::ifstream ifs(filepath, std::ios::binary | std::ios::ate);
 
     if (!ifs)
@@ -417,6 +430,7 @@ std::optional<volume> volume::load(const std::filesystem::path& filepath)
 
     std::vector<uint8_t> buffer(size);
 
+    // Read the file into a buffer of bytes
     if (!ifs.read(reinterpret_cast<char*>(buffer.data()), static_cast<std::streamsize>(buffer.size())))
         return std::nullopt;
 

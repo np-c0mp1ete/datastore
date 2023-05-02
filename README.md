@@ -14,5 +14,5 @@ Vaults and volumes can be accessed by multiple threads concurrently.
 
 ```
 cmake --preset <configurePreset-name>
-cmake --build --preset <buildPreset-name>
+cmake --build ./out/build/<configurePreset-name>
 ```

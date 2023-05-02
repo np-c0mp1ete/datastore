@@ -59,6 +59,7 @@ class striped_hashmap
             auto found_entry = find_entry_for(std::forward<K>(key));
             if (found_entry == data.end())
             {
+                // Try to atomically check if the current size is less than the limit and increment it if it is
                 size_t expected = cur_size.load(std::memory_order_relaxed);
                 if (expected >= max_size ||
                     !cur_size.compare_exchange_weak(expected, expected + 1, std::memory_order_relaxed))
@@ -78,6 +79,7 @@ class striped_hashmap
             auto found_entry = find_entry_for(std::forward<K>(key));
             if (found_entry == data.end())
             {
+                // Try to atomically check if the current size is less than the limit and increment it if it is
                 size_t expected = cur_size.load(std::memory_order_relaxed);
                 if (expected >= max_size ||
                     !cur_size.compare_exchange_weak(expected, expected + 1, std::memory_order_relaxed))

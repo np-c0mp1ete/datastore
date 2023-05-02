@@ -43,6 +43,7 @@ class volume final
 
     static const inline std::vector<uint8_t> signature = {'=', 'V', 'O', 'L'};
 
+    // Maximum depth of the nodes hierarchy
     constexpr static size_t max_tree_depth = 5;
 
     volume(path_view root_name, priority_t priority);

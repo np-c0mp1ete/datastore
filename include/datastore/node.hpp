@@ -161,7 +161,6 @@ class node final
     std::shared_ptr<node> open_subnode(path_view subnode_path) const;
 
     // Deletes a subnode and any child subnodes recursively
-    // The subnode can be several levels deep in the volume tree
     bool delete_subnode_tree(path_view subnode_name);
     bool delete_subnode_tree();
 

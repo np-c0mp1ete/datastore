@@ -1,8 +1,6 @@
 #include "datastore/node.hpp"
 #include "datastore/volume.hpp"
 
-#include <unordered_set>
-
 namespace datastore
 {
 std::ostream& operator<<(std::ostream& lhs, const value_type& rhs)
@@ -29,6 +27,7 @@ node::node(path_view full_path, uint8_t volume_priority)
       full_path_view_(full_path_str_),
       volume_priority(volume_priority)
 {
+    // Play dead if the path is invalid
     if (!full_path_view_.valid())
         deleted_ = true;
 }
@@ -68,24 +67,30 @@ std::shared_ptr<node> node::create_subnode(path_view subnode_path)
     if (full_path_view_.size() >= volume::max_tree_depth)
         return nullptr;
 
+    // Take the first element of the given path
     const std::string subnode_name = std::string(*subnode_path.front());
 
+    // Try to find an existing subnode or create a new one if the limit of subnodes is not reached
     const auto& subnode_success_pair = subnodes_.find_or_insert_with_limit(
         subnode_name, new node(full_path_view_ + subnode_name, volume_priority), max_num_subnodes);
-    const auto [subnode, success] = subnode_success_pair;
+    const auto& [subnode, success] = subnode_success_pair;
     if (!success)
         return nullptr;
 
+    // Recursively create subnodes if a composite path was specified
     if (subnode_path.composite())
     {
         subnode_path.pop_front();
         return subnode->create_subnode(std::move(subnode_path));
     }
 
+    // Cleanup expired observers
     observers_.remove_if([](const std::weak_ptr<detail::node_observer>& observer) {
         return observer.expired();
     });
 
+    // Notify existing observers about subnode creation
+    // TODO: don't notify if it was just an opening of an existing subnode
     observers_.for_each([&](const std::weak_ptr<detail::node_observer>& observer) {
         if (const std::shared_ptr<detail::node_observer>& valid_observer = observer.lock())
         {
@@ -98,23 +103,22 @@ std::shared_ptr<node> node::create_subnode(path_view subnode_path)
 
 std::shared_ptr<node> node::open_subnode(path_view subnode_path) const
 {
-    if (!subnode_path.valid() || deleted_)
+    if (!subnode_path.valid())
         return nullptr;
 
     if (deleted_)
         return nullptr;
 
+    // Take the first element of the given path and try to find a subnode with this name
     const std::string subnode_name = std::string(*subnode_path.front());
 
-    const auto opt = subnodes_.find(subnode_name);
+    const auto& opt = subnodes_.find(subnode_name);
     if (!opt)
         return nullptr;
 
-    auto subnode = *opt;
+    const std::shared_ptr<node>& subnode = *opt;
 
-    if (subnode->deleted_)
-        return nullptr;
-
+    // Open subnodes recursively if the path has multiple elements
     if (subnode_path.composite())
     {
         subnode_path.pop_front();
@@ -131,10 +135,12 @@ void node::notify_on_delete_subnode_observers(const std::shared_ptr<node>& subno
         subnode->notify_on_delete_subnode_observers(node);
     });
 
+    // Cleanup observers list
     observers_.remove_if([](const std::weak_ptr<detail::node_observer>& observer) {
         return observer.expired();
     });
 
+    // Let existing observers know about the subnode deletion
     observers_.for_each([&](const std::weak_ptr<detail::node_observer>& observer) {
         if (const std::shared_ptr<detail::node_observer>& valid_observer = observer.lock())
         {
@@ -142,7 +148,10 @@ void node::notify_on_delete_subnode_observers(const std::shared_ptr<node>& subno
         }
     });
 
+    // Finally mark the subnode as deleted
     subnode->deleted_ = true;
+
+    // TODO: subnodes don't erase children recursively
 }
 
 bool node::delete_subnode_tree(path_view subnode_name)
@@ -205,7 +214,7 @@ std::optional<value_kind> node::get_value_kind(const std::string& value_name) co
     if (deleted_)
         return std::nullopt;
 
-    const auto opt_value = values_.find(value_name);
+    const auto& opt_value = values_.find(value_name);
 
     if (!opt_value)
         return std::nullopt;
